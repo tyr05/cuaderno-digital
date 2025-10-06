@@ -214,38 +214,51 @@ export default function Dashboard() {
 
 function HeroSummary({ user, cursos, cursoSel, onCursoChange, loading, onCreate }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-muted/60 bg-[radial-gradient(circle_at_top,_rgba(79,70,229,0.55),_rgba(15,23,42,0.95))] p-8 text-white shadow-soft">
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-screen" aria-hidden="true" />
+    <div className="relative overflow-hidden rounded-3xl border border-muted/50 bg-gradient-to-br from-brand-100 via-brand-50 to-white p-8 text-text shadow-soft">
       <div className="relative z-10 flex flex-col gap-8 lg:gap-10">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-white/70">Panel principal</p>
-            <h2 className="mt-2 text-3xl font-semibold leading-snug sm:text-4xl">
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700/70">Panel principal</p>
+            <h2 className="mt-3 text-3xl font-semibold leading-snug text-text sm:text-4xl">
               ¡Hola{user?.nombre ? `, ${user.nombre}` : ""}! Organizá tu jornada
             </h2>
-            <p className="mt-3 max-w-xl text-base text-white/80">
+            <p className="mt-4 text-base text-subtext">
               Revisá anuncios, seguí el pulso de los cursos y mantené informada a la comunidad educativa desde un solo lugar.
             </p>
           </div>
-          <div className="w-full max-w-xs rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
-            <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Curso activo</div>
-            {loading ? (
-              <div className="mt-3 text-sm text-white/80">Cargando cursos…</div>
-            ) : cursos.length === 0 ? (
-              <div className="mt-3 text-sm text-white/80">No hay cursos disponibles.</div>
-            ) : (
-              <Select
-                value={cursoSel}
-                onChange={(e) => onCursoChange(e.target.value)}
-                className="mt-3 w-full rounded-xl bg-white/90 text-left text-sm text-slate-900"
-              >
-                {cursos.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.nombre} — {c.anio}° {c.division || ""}
-                  </option>
-                ))}
-              </Select>
-            )}
+          <div className="flex w-full max-w-sm flex-col gap-4 lg:items-end">
+            <div className="w-full rounded-2xl border border-brand-200/60 bg-white/80 p-4 backdrop-blur-sm">
+              <div className="text-xs font-semibold uppercase tracking-wide text-subtext/80">Curso activo</div>
+              {loading ? (
+                <div className="mt-3 text-sm text-subtext">Cargando cursos…</div>
+              ) : cursos.length === 0 ? (
+                <div className="mt-3 text-sm text-subtext">No hay cursos disponibles.</div>
+              ) : (
+                <Select
+                  value={cursoSel}
+                  onChange={(e) => onCursoChange(e.target.value)}
+                  className="mt-3 w-full rounded-xl border border-muted/60 bg-white text-left text-sm text-text shadow-sm"
+                >
+                  {cursos.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.nombre} — {c.anio}° {c.division || ""}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+            <div className="grid w-full grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/60 bg-white/90 p-3 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-subtext/80">Participación</p>
+                <p className="mt-2 text-2xl font-semibold text-brand-700">87%</p>
+                <p className="text-xs text-subtext">En las últimas 24 h</p>
+              </div>
+              <div className="rounded-2xl border border-brand-200/60 bg-brand-500/10 p-3 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-brand-700/70">Próxima entrega</p>
+                <p className="mt-2 text-lg font-semibold text-brand-700">Viernes 14:00</p>
+                <p className="text-xs text-subtext">Recordatorio automático listo</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -254,7 +267,7 @@ function HeroSummary({ user, cursos, cursoSel, onCursoChange, loading, onCreate 
             <Button onClick={onCreate} className="shadow-soft">
               Publicar anuncio
             </Button>
-            <div className="text-sm text-white/70">
+            <div className="text-sm text-subtext">
               Compartí novedades con estudiantes, familias y docentes en segundos.
             </div>
           </div>
