@@ -85,12 +85,22 @@ export default function Dashboard() {
     }
   }
 
+  const cursoActual = cursos.find((c) => c._id === cursoSel);
+
   return (
     <Shell
       tabs={[
         { to: "/", label: "Inicio" },
         { to: "/asistencia", label: "Asistencia" },
       ]}
+      title="Panel principal"
+      description={
+        cursoActual
+          ? `Curso seleccionado: ${cursoActual.nombre} — ${cursoActual.anio}° ${cursoActual.division || ""}`
+          : "Resumen general de novedades y cursos"
+      }
+      addNewLabel="Nuevo anuncio"
+      onAddNew={esCreador ? () => setOpenNew(true) : undefined}
     >
       {/* Resumen superior */}
       <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -98,11 +108,6 @@ export default function Dashboard() {
           <CardHeader
             title="Tus cursos"
             subtitle="Seleccioná para ver anuncios"
-            actions={
-              esCreador && cursos.length > 0 && (
-                <Button onClick={() => setOpenNew(true)}>Nuevo anuncio</Button>
-              )
-            }
           />
           <CardBody>
             {loading ? (
