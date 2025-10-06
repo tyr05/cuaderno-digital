@@ -313,7 +313,7 @@ function UpcomingEvents() {
           <CalendarDays className="h-5 w-5" aria-hidden="true" />
         </span>
         <div>
-          <h3 className="text-lg font-semibold text-title">Próximos eventos</h3>
+          <h3 className="text-lg font-semibold text-text">Próximos eventos</h3>
           <p className="text-sm text-subtext">Agenda destacada para los próximos días.</p>
         </div>
       </div>
@@ -325,7 +325,7 @@ function UpcomingEvents() {
             className="flex items-center justify-between rounded-2xl border border-muted/50 bg-white/50 px-4 py-3 text-sm text-subtext backdrop-blur"
           >
             <div>
-              <div className="font-semibold text-title">{event.title}</div>
+              <div className="font-semibold text-text">{event.title}</div>
               <div>{event.description}</div>
             </div>
             <span className={`rounded-xl px-3 py-1 text-xs font-semibold ${event.tone}`}>
@@ -358,7 +358,7 @@ function ProgressHighlights() {
 
   return (
     <div className="rounded-3xl border border-muted/60 bg-card/70 p-6 shadow-soft">
-      <h3 className="text-lg font-semibold text-title">Avances rápidos</h3>
+      <h3 className="text-lg font-semibold text-text">Avances rápidos</h3>
       <p className="text-sm text-subtext">Seguimiento de indicadores clave de la semana.</p>
 
       <div className="mt-6 space-y-4">
@@ -370,7 +370,7 @@ function ProgressHighlights() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium text-subtext">{label}</div>
-                <div className="mt-1 text-2xl font-semibold text-title">{value}%</div>
+                <div className="mt-1 text-2xl font-semibold text-text">{value}%</div>
               </div>
               <span className={`rounded-full bg-brand/5 p-2 ${tone}`}>
                 <Icon className="h-5 w-5" aria-hidden="true" />
