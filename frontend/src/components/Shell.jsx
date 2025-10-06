@@ -73,10 +73,10 @@ export default function Shell({
         to={t.to}
         onClick={() => setSidebarOpen(false)}
         className={
-          "block rounded-xl px-4 py-2 text-sm font-medium transition " +
+          "block rounded-2xl px-4 py-2.5 text-sm font-medium shadow-sm transition " +
           (active
-            ? "bg-brand-100 text-brand-700 shadow-sm"
-            : "text-subtext hover:bg-brand-500/10")
+            ? "bg-brand-500/20 text-brand-700"
+            : "bg-white/60 text-subtext hover:bg-white/80 hover:text-brand-700")
         }
       >
         {t.label}
@@ -85,50 +85,63 @@ export default function Shell({
   });
 
   const SidebarContent = ({ showClose }) => (
-    <aside className="flex h-full w-72 flex-col bg-white shadow-xl">
-      <div className="flex items-center justify-between gap-3 px-6 pt-7 pb-4 border-b border-muted">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-500 text-white shadow-lg">
-            <NotebookPen className="h-5 w-5" aria-hidden="true" />
+    <aside className="relative flex h-full w-full max-w-[18rem] flex-col overflow-hidden rounded-[3rem] bg-gradient-to-b from-brand-200 via-brand-100 to-surface shadow-[0_25px_60px_-30px_rgba(14,53,33,0.6)] lg:rounded-l-none lg:rounded-r-[3rem]">
+      <div
+        className="pointer-events-none absolute inset-x-6 top-0 h-40 rounded-full bg-brand-500/30 blur-3xl"
+        aria-hidden="true"
+      />
+
+      <div className="flex flex-1 flex-col gap-5 px-6 py-7">
+        <div className="relative flex items-center justify-between gap-3 rounded-[1.75rem] border border-white/60 bg-white/80 p-5 shadow-md backdrop-blur">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-500 text-white shadow-lg">
+              <NotebookPen className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text">Cuaderno Digital</p>
+              <p className="text-xs text-subtext">
+                {user?.rol ? `Rol: ${user.rol}` : "Gestión escolar"}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-text">Cuaderno Digital</p>
-            <p className="text-xs text-subtext">{user?.rol ? `Rol: ${user.rol}` : "Gestión escolar"}</p>
-          </div>
+          {showClose && (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="rounded-full p-1 text-subtext transition hover:bg-brand-500/10 hover:text-brand-700"
+              aria-label="Cerrar menú"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
         </div>
-        {showClose && (
+
+        <div className="rounded-[1.75rem] border border-white/60 bg-white/80 p-4 shadow-md backdrop-blur">
+          <AddNewButton variant="gradient" className="w-full" />
+        </div>
+
+        <div className="flex-1 overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/70 p-3 shadow-md backdrop-blur">
+          <nav className="flex h-full flex-col gap-2 overflow-y-auto">
+            {menuItems.length > 0 ? (
+              menuItems
+            ) : (
+              <span className="block rounded-2xl bg-white/80 px-4 py-2 text-sm text-subtext shadow-sm">
+                Sin secciones disponibles
+              </span>
+            )}
+          </nav>
+        </div>
+
+        <div className="rounded-[1.75rem] border border-white/60 bg-white/80 p-4 shadow-md backdrop-blur">
           <button
             type="button"
-            onClick={() => setSidebarOpen(false)}
-            className="rounded-full p-1 text-subtext transition hover:bg-brand-500/10 hover:text-brand-700"
-            aria-label="Cerrar menú"
+            onClick={logout}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
           >
-            <X className="h-5 w-5" aria-hidden="true" />
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            <span>Salir</span>
           </button>
-        )}
-      </div>
-
-      <div className="px-6 pt-5">
-        <AddNewButton variant="gradient" className="w-full" />
-      </div>
-
-      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
-        {menuItems.length > 0 ? menuItems : (
-          <span className="block rounded-xl bg-surface px-4 py-2 text-sm text-subtext">
-            Sin secciones disponibles
-          </span>
-        )}
-      </nav>
-
-      <div className="border-t border-muted px-6 py-6">
-        <button
-          type="button"
-          onClick={logout}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-        >
-          <LogOut className="h-4 w-4" aria-hidden="true" />
-          <span>Salir</span>
-        </button>
+        </div>
       </div>
     </aside>
   );
@@ -136,7 +149,7 @@ export default function Shell({
   return (
     <div className="min-h-screen bg-surface text-text">
       <div className="flex min-h-screen">
-        <div className="hidden lg:flex lg:shrink-0">
+        <div className="hidden lg:flex lg:shrink-0 lg:pl-4 lg:pr-6 lg:pt-6">
           <SidebarContent showClose={false} />
         </div>
 
@@ -147,7 +160,7 @@ export default function Shell({
               aria-hidden="true"
               onClick={() => setSidebarOpen(false)}
             />
-            <div className="relative ml-auto h-full w-72 max-w-full">
+            <div className="relative ml-auto flex h-full w-full max-w-[20rem] items-stretch p-4">
               <SidebarContent showClose />
             </div>
           </div>
