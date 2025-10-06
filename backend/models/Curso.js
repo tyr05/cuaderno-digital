@@ -5,6 +5,7 @@ const cursoSchema = new mongoose.Schema(
     nombre: { type: String, required: true },
     anio: { type: Number, required: true }, // ej. 1, 2, 3
     division: { type: String }, // ej. "A", "B"
+    turno: { type: String, enum: ["TM", "TT"] }, // ej. "TM", "TT"
     docentes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     alumnos: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
   },
