@@ -13,6 +13,12 @@ import Select from "../components/ui/Select";
 import EmptyState from "../components/ui/EmptyState";
 import Input from "../components/ui/Input";
 
+const formatCursoEtiqueta = (curso) => {
+  if (!curso) return "";
+  const partes = [`${curso.anio}°`, curso.division, curso.turno].filter(Boolean);
+  return partes.join(" ");
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const toast = useToast();
@@ -96,7 +102,7 @@ export default function Dashboard() {
       title="Panel principal"
       description={
         cursoActual
-          ? `Curso seleccionado: ${cursoActual.nombre} — ${cursoActual.anio}° ${cursoActual.division || ""}`
+          ? `Curso seleccionado: ${cursoActual.nombre} — ${formatCursoEtiqueta(cursoActual)}`
           : "Resumen general de novedades y cursos"
       }
       addNewLabel="Nuevo anuncio"
@@ -137,7 +143,10 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-subtext">
                       <Megaphone className="h-4 w-4" aria-hidden="true" />
-                      <span>{a.curso?.nombre}</span>
+                      <span>
+                        {a.curso?.nombre}
+                        {a.curso ? ` — ${formatCursoEtiqueta(a.curso)}` : ""}
+                      </span>
                       <span>•</span>
                       <span>{new Date(a.createdAt).toLocaleString("es-AR")}</span>
                     </div>
@@ -177,7 +186,7 @@ export default function Dashboard() {
             <Select label="Curso" value={cursoSel} onChange={(e) => setCursoSel(e.target.value)}>
               {cursos.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.nombre} — {c.anio}° {c.division || ""}
+                  {c.nombre} — {formatCursoEtiqueta(c)}
                 </option>
               ))}
             </Select>
@@ -242,7 +251,7 @@ function HeroSummary({ user, cursos, cursoSel, onCursoChange, loading, onCreate 
                 >
                   {cursos.map((c) => (
                     <option key={c._id} value={c._id}>
-                      {c.nombre} — {c.anio}° {c.division || ""}
+                      {c.nombre} — {formatCursoEtiqueta(c)}
                     </option>
                   ))}
                 </Select>

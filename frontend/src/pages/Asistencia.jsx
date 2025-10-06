@@ -14,6 +14,12 @@ import { Table, THead, TRow, TH, TD } from "../components/ui/Table";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 
+const formatCursoEtiqueta = (curso) => {
+  if (!curso) return "";
+  const partes = [`${curso.anio}°`, curso.division, curso.turno].filter(Boolean);
+  return partes.join(" ");
+};
+
 function hoyStr(d = new Date()) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -277,7 +283,7 @@ export default function Asistencia() {
                     <Select value={cursoSel} onChange={(e) => setCursoSel(e.target.value)}>
                       {cursos.map((c) => (
                         <option key={c._id} value={c._id}>
-                          {c.nombre} — {c.anio}° {c.division || ""}
+                          {c.nombre} — {formatCursoEtiqueta(c)}
                         </option>
                       ))}
                     </Select>

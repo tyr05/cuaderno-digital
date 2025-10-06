@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import Curso from "./models/Curso.js";
 
 // 1) Cargar .env primero
 dotenv.config();
@@ -16,7 +17,20 @@ app.use(express.json());
 const { MONGO_URI, PORT } = process.env;
 mongoose
   .connect(MONGO_URI)
-  .then(() => console.log("✅ Conectado a MongoDB"))
+  .then(async () => {
+    console.log("✅ Conectado a MongoDB");
+    try {
+      const { modifiedCount } = await Curso.updateMany(
+        { $or: [{ turno: { $exists: false } }, { turno: null }] },
+        { $set: { turno: "TM" } }
+      );
+      if (modifiedCount > 0) {
+        console.log(`ℹ️ Cursos actualizados con turno predeterminado: ${modifiedCount}`);
+      }
+    } catch (err) {
+      console.error("❌ Error al migrar turnos de cursos:", err.message);
+    }
+  })
   .catch((err) => console.error("❌ Error MongoDB:", err.message));
 import path from "path";
 import multer from "multer";

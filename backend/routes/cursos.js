@@ -7,6 +7,16 @@ const router = Router();
 // Crear un curso (solo admin)
 router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
   try {
+    const { turno } = req.body;
+
+    if (!turno) {
+      return res.status(400).json({ error: "El turno es obligatorio" });
+    }
+
+    if (!["TM", "TT"].includes(turno)) {
+      return res.status(400).json({ error: "Turno inválido. Debe ser TM o TT" });
+    }
+
     const curso = await Curso.create(req.body);
     res.status(201).json(curso);
   } catch (err) {
