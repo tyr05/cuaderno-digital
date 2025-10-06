@@ -12,8 +12,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 3) Conectar a MongoDB
-const { MONGO_URI, PORT } = process.env;
+// 3) Validar variables de entorno críticas y conectar a MongoDB
+const { MONGO_URI, JWT_SECRET, PORT } = process.env;
+
+if (!MONGO_URI || !JWT_SECRET) {
+  console.error(
+    "❌ Configuración inválida: asegúrate de definir MONGO_URI y JWT_SECRET antes de iniciar el servidor."
+  );
+  process.exit(1);
+}
+
+console.log("✅ Variables de entorno críticas presentes (MONGO_URI, JWT_SECRET).");
+
 mongoose
   .connect(MONGO_URI)
   .then(() => console.log("✅ Conectado a MongoDB"))
