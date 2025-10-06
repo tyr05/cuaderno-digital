@@ -237,7 +237,8 @@ function HeroSummary({ user, cursos, cursoSel, onCursoChange, loading, onCreate 
                 <Select
                   value={cursoSel}
                   onChange={(e) => onCursoChange(e.target.value)}
-                  className="mt-3 w-full rounded-xl border border-muted/60 bg-white text-left text-sm text-text shadow-sm"
+                  className="mt-3 w-full"
+                  selectClassName="rounded-xl border border-muted/60 bg-white text-left text-sm text-text shadow-sm"
                 >
                   {cursos.map((c) => (
                     <option key={c._id} value={c._id}>
