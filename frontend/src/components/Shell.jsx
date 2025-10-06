@@ -76,7 +76,7 @@ export default function Shell({
           "block rounded-xl px-4 py-2 text-sm font-medium transition " +
           (active
             ? "bg-brand-100 text-brand-700 shadow-sm"
-            : "text-slate-500 hover:bg-slate-100")
+            : "text-subtext hover:bg-brand-500/10")
         }
       >
         {t.label}
@@ -86,21 +86,21 @@ export default function Shell({
 
   const SidebarContent = ({ showClose }) => (
     <aside className="flex h-full w-72 flex-col bg-white shadow-xl">
-      <div className="flex items-center justify-between gap-3 px-6 pt-7 pb-4 border-b border-slate-200">
+      <div className="flex items-center justify-between gap-3 px-6 pt-7 pb-4 border-b border-muted">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-500 text-white shadow-lg">
             <NotebookPen className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900">Cuaderno Digital</p>
-            <p className="text-xs text-slate-500">{user?.rol ? `Rol: ${user.rol}` : "Gestión escolar"}</p>
+            <p className="text-sm font-semibold text-text">Cuaderno Digital</p>
+            <p className="text-xs text-subtext">{user?.rol ? `Rol: ${user.rol}` : "Gestión escolar"}</p>
           </div>
         </div>
         {showClose && (
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-full p-1 text-subtext transition hover:bg-brand-500/10 hover:text-brand-700"
             aria-label="Cerrar menú"
           >
             <X className="h-5 w-5" aria-hidden="true" />
@@ -114,13 +114,13 @@ export default function Shell({
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
         {menuItems.length > 0 ? menuItems : (
-          <span className="block rounded-xl bg-slate-50 px-4 py-2 text-sm text-slate-400">
+          <span className="block rounded-xl bg-surface px-4 py-2 text-sm text-subtext">
             Sin secciones disponibles
           </span>
         )}
       </nav>
 
-      <div className="border-t border-slate-200 px-6 py-6">
+      <div className="border-t border-muted px-6 py-6">
         <button
           type="button"
           onClick={logout}
@@ -134,7 +134,7 @@ export default function Shell({
   );
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800">
+    <div className="min-h-screen bg-surface text-text">
       <div className="flex min-h-screen">
         <div className="hidden lg:flex lg:shrink-0">
           <SidebarContent showClose={false} />
@@ -154,38 +154,38 @@ export default function Shell({
         )}
 
         <main className="flex min-h-screen flex-1 flex-col">
-          <div className="border-b border-slate-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+          <div className="border-b border-muted bg-surface/90 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
             <div className="flex flex-col gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-4">
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(true)}
-                  className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 lg:hidden"
+                  className="rounded-2xl border border-muted bg-surface p-2 text-subtext shadow-sm transition hover:bg-brand-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 lg:hidden"
                   aria-label="Abrir menú"
                 >
                   <Menu className="h-5 w-5" aria-hidden="true" />
                 </button>
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-subtext">
                     Inicio · {currentTab?.label || "Panel"}
                   </p>
-                  <h1 className="mt-1 text-2xl font-semibold text-slate-900 sm:text-3xl">
+                  <h1 className="mt-1 text-2xl font-semibold text-text sm:text-3xl">
                     {displayTitle}
                   </h1>
-                  <p className="mt-1 text-sm text-slate-500">{displayDescription}</p>
+                  <p className="mt-1 text-sm text-subtext">{displayDescription}</p>
                 </div>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 {headerActions}
                 <AddNewButton className="w-full sm:w-auto" />
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                <div className="flex items-center gap-3 rounded-full bg-brand-500/15 px-3 py-1.5 text-brand-700 transition hover:bg-brand-500/10">
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-800">{user?.nombre || "Usuario"}</p>
-                    <p className="text-xs uppercase text-slate-400">{user?.rol || "Invitado"}</p>
+                    <p className="text-sm font-semibold leading-tight">{user?.nombre || "Usuario"}</p>
+                    <p className="text-xs uppercase text-brand-600/80">{user?.rol || "Invitado"}</p>
                   </div>
-                  <div className="grid h-10 w-10 place-items-center rounded-full bg-brand-100 text-brand-600 font-semibold">
+                  <div className="grid h-10 w-10 place-items-center rounded-full bg-white/80 text-brand-600 font-semibold">
                     {initials}
                   </div>
                 </div>
