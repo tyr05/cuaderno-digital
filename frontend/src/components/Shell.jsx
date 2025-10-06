@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
-import { cloneElement, isValidElement, useMemo, useState } from "react";
+import {
+  cloneElement,
+  createElement,
+  isValidElement,
+  useMemo,
+  useState,
+} from "react";
 
 export default function Shell({
   children,
@@ -249,6 +255,15 @@ export default function Shell({
                         iconContent = (
                           <IconComponent className="h-5 w-5" aria-hidden="true" />
                         );
+                      } else if (
+                        icon &&
+                        typeof icon === "object" &&
+                        ("render" in icon || "type" in icon || "$$typeof" in icon)
+                      ) {
+                        iconContent = createElement(icon, {
+                          className: "h-5 w-5",
+                          "aria-hidden": "true",
+                        });
                       } else {
                         iconContent = icon;
                       }
