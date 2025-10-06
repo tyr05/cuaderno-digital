@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
-import { useMemo, useState } from "react";
+import { cloneElement, isValidElement, useMemo, useState } from "react";
 
 export default function Shell({
   children,
@@ -230,13 +230,28 @@ export default function Shell({
                   </label>
                   <div className="flex items-center justify-end gap-2">
                     {resolvedQuickActions.map((action) => {
-                      const IconComponent = action.icon;
-                      const iconContent =
-                        typeof IconComponent === "function" ? (
+                      const { icon } = action;
+
+                      let iconContent;
+
+                      if (isValidElement(icon)) {
+                        const existingClassName = icon.props?.className;
+                        const mergedClassName = ["h-5 w-5", existingClassName]
+                          .filter(Boolean)
+                          .join(" ");
+
+                        iconContent = cloneElement(icon, {
+                          className: mergedClassName,
+                          "aria-hidden": "true",
+                        });
+                      } else if (typeof icon === "function") {
+                        const IconComponent = icon;
+                        iconContent = (
                           <IconComponent className="h-5 w-5" aria-hidden="true" />
-                        ) : (
-                          IconComponent
                         );
+                      } else {
+                        iconContent = icon;
+                      }
 
                       return (
                         <button
