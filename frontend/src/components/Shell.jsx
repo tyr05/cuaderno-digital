@@ -9,7 +9,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 import { cloneElement, isValidElement, useMemo, useState } from "react";
 
