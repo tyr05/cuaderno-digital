@@ -41,7 +41,7 @@ router.get("/", requireAuth, async (req, res) => {
     const anuncios = await Anuncio.find(filtro)
       .sort({ createdAt: -1 })
       .populate("autor", "nombre rol")
-      .populate("curso", "nombre anio division");
+      .populate("curso", "nombre anio division turno");
 
     res.json(anuncios);
   } catch (e) {
