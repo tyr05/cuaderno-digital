@@ -273,7 +273,7 @@ function HeroSummary({ user, cursos, cursoSel, onCursoChange, loading, onCreate 
             </div>
           </div>
         ) : (
-          <div className="text-sm text-white/70">
+          <div className="text-sm text-subtext">
             Los anuncios nuevos aparecerán aquí cuando tus docentes los publiquen.
           </div>
         )}
