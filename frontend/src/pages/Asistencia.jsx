@@ -33,6 +33,7 @@ export default function Asistencia() {
   const [alumnos, setAlumnos] = useState([]);   // alumnos del curso (docente/admin)
   const [registros, setRegistros] = useState([]); // asistencias del día
   const [cargando, setCargando] = useState(false);
+  const [marcas, setMarcas] = useState({});
 
   // Estado UI — modales
   const [justifyOpen, setJustifyOpen] = useState(false);
@@ -91,21 +92,35 @@ export default function Asistencia() {
   }, [fecha, cursoSel, esDocenteOAdmin, esPadre, esEstudiante, user?.id]);
 
   // Mapa alumnoId -> estado (para precargar selects)
-  const estadoMap = useMemo(() => {
-    const m = new Map();
-    for (const r of registros) m.set(r.alumno?._id || r.alumno, r.estado);
-    return m;
-  }, [registros]);
+  useEffect(() => {
+    if (!esDocenteOAdmin) {
+      setMarcas({});
+      return;
+    }
+
+    const next = {};
+
+    alumnos.forEach((alumno) => {
+      const registro = registros.find(
+        (r) => (r.alumno?._id || r.alumno) === alumno._id,
+      );
+      if (registro?.estado) {
+        next[alumno._id] = registro.estado;
+      }
+    });
+
+    setMarcas(next);
+  }, [alumnos, registros, esDocenteOAdmin]);
 
   // ---- Acciones ----
   async function guardarMarcas() {
     if (!esDocenteOAdmin || !cursoSel) return;
     setCargando(true);
     try {
-      const lista = alumnos.map((a) => {
-        const sel = document.getElementById(`estado-${a._id}`);
-        return { alumnoId: a._id, estado: sel?.value || "presente" };
-      });
+      const lista = alumnos.map((a) => ({
+        alumnoId: a._id,
+        estado: marcas[a._id] ?? "presente",
+      }));
       await apiPost("/api/asistencias/marcar", { cursoId: cursoSel, fecha, lista });
       const data = await apiGet(`/api/asistencias?curso=${cursoSel}&fecha=${fecha}`);
       setRegistros(data);
@@ -353,7 +368,7 @@ export default function Asistencia() {
                       : registros[idx];
 
                     const estado = esDocenteOAdmin
-                      ? estadoMap.get(a._id) || "presente"
+                      ? marcas[a._id] ?? "presente"
                       : reg?.estado;
 
                     const asistenciaId = reg?._id;
@@ -373,8 +388,13 @@ export default function Asistencia() {
                         <TD>
                           {esDocenteOAdmin ? (
                             <select
-                              id={`estado-${a._id}`}
-                              defaultValue={estado}
+                              value={marcas[a._id] ?? "presente"}
+                              onChange={(e) =>
+                                setMarcas((prev) => ({
+                                  ...prev,
+                                  [a._id]: e.target.value,
+                                }))
+                              }
                               className="w-full rounded-2xl border border-white/70 bg-white px-3 py-2 text-sm text-text shadow-inner focus:outline-none focus:ring-2 focus:ring-brand-300"
                             >
                               <option value="presente">Presente</option>
