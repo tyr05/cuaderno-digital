@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/auth.js";
-import Anuncio from "../models/Anuncio.js";
+import Anuncio from "../models/anuncio.js";
 
 const router = Router();
 
