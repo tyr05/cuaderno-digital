@@ -1,5 +1,14 @@
 // frontend/src/components/Shell.jsx
-import { LogOut, NotebookPen, Menu, Plus, X } from "lucide-react";
+import {
+  Bell,
+  LogOut,
+  NotebookPen,
+  Menu,
+  Plus,
+  Search,
+  Settings,
+  X,
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 import { useMemo, useState } from "react";
@@ -12,6 +21,8 @@ export default function Shell({
   addNewLabel = "Add new",
   onAddNew,
   headerActions,
+  searchPlaceholder = "Buscar en Cuaderno Digital",
+  quickActions,
 }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
@@ -133,6 +144,21 @@ export default function Shell({
     </aside>
   );
 
+  const resolvedQuickActions = quickActions?.length
+    ? quickActions
+    : [
+        {
+          key: "notifications",
+          icon: Bell,
+          label: "Ver notificaciones",
+        },
+        {
+          key: "settings",
+          icon: Settings,
+          label: "Abrir ajustes",
+        },
+      ];
+
   return (
     <div className="min-h-screen bg-surface text-text">
       <div className="flex min-h-screen">
@@ -177,8 +203,45 @@ export default function Shell({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                 {headerActions}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                  <label className="flex w-full items-center gap-3 rounded-full bg-white px-4 py-2 shadow-soft ring-1 ring-transparent transition focus-within:ring-2 focus-within:ring-brand-200 sm:max-w-sm lg:min-w-[22rem]">
+                    <Search className="h-4 w-4 text-subtext" aria-hidden="true" />
+                    <span className="sr-only">Buscar</span>
+                    <input
+                      type="search"
+                      placeholder={searchPlaceholder}
+                      className="w-full border-0 bg-transparent text-sm text-text placeholder:text-subtext focus:outline-none"
+                    />
+                  </label>
+                  <div className="flex items-center justify-end gap-2">
+                    {resolvedQuickActions.map((action) => {
+                      const IconComponent = action.icon;
+                      const iconContent =
+                        typeof IconComponent === "function" ? (
+                          <IconComponent className="h-5 w-5" aria-hidden="true" />
+                        ) : (
+                          IconComponent
+                        );
+
+                      return (
+                        <button
+                          key={action.key || action.label}
+                          type="button"
+                          onClick={action.onClick}
+                          className={
+                            "inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-subtext shadow-soft transition hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200" +
+                            (action.className ? ` ${action.className}` : "")
+                          }
+                          aria-label={action.label || "Acción rápida"}
+                        >
+                          {iconContent}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <AddNewButton className="w-full sm:w-auto" />
                 <div className="flex items-center gap-3 rounded-full bg-brand-500/15 px-3 py-1.5 text-brand-700 transition hover:bg-brand-500/10">
                   <div className="text-right">
