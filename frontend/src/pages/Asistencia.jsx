@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthProvider";
 import { apiGet, apiPost, apiPostForm } from "../api";
 import Shell from "../components/Shell";
 import Button from "../components/ui/Button";
-import { Card, CardHeader, CardBody } from "../components/ui/Card";
+import { Card, CardBody } from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
@@ -150,6 +150,67 @@ export default function Asistencia() {
   // Render de filas
   const filas = esDocenteOAdmin ? alumnos : registros.map((r) => r.alumno);
 
+  const totalAlumnosVista = esDocenteOAdmin ? alumnos.length : registros.length;
+
+  const resumenEstados = useMemo(() => {
+    const counts = {
+      presente: 0,
+      ausente: 0,
+      tarde: 0,
+      justificado: 0,
+    };
+
+    registros.forEach((registro) => {
+      if (!registro?.estado) return;
+      const key = registro.estado;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    return counts;
+  }, [registros]);
+
+  const summaryData = useMemo(() => {
+    const base = [
+      { key: "presente", label: "Presentes", color: "success", icon: "✅" },
+      { key: "ausente", label: "Ausentes", color: "danger", icon: "🚫" },
+      { key: "tarde", label: "Llegadas tarde", color: "warn", icon: "⏰" },
+      { key: "justificado", label: "Justificados", color: "brand", icon: "📝" },
+    ];
+
+    return base.map((item) => {
+      const value = resumenEstados[item.key] || 0;
+      const total = totalAlumnosVista || 0;
+      const ratio = total ? Math.round((value / total) * 100) : null;
+
+      return {
+        ...item,
+        value,
+        helper: ratio !== null
+          ? `${ratio}% del grupo (${value}/${total})`
+          : "Aún sin datos para hoy",
+      };
+    });
+  }, [resumenEstados, totalAlumnosVista]);
+
+  const fechaLegible = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("es-AR", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(fecha));
+    } catch (error) {
+      return fecha;
+    }
+  }, [fecha]);
+
+  const estadoColorMap = {
+    presente: "success",
+    ausente: "danger",
+    tarde: "warn",
+    justificado: "brand",
+  };
+
   return (
     <Shell
       tabs={[
@@ -157,150 +218,236 @@ export default function Asistencia() {
         { to: "/asistencia", label: "Asistencia" },
       ]}
     >
-      {/* Filtros */}
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardHeader title="Fecha" subtitle="Seleccioná el día" />
-          <CardBody>
-            <Input type="date" value={fecha} onChange={(e)=>setFecha(e.target.value)} />
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Curso"
-            subtitle={esDocenteOAdmin ? "Solo para docente/admin" : "Tu rol filtra tu vista"}
-          />
-          <CardBody>
-            {esDocenteOAdmin ? (
-              cursosLoading ? (
-                <Skeleton className="h-10 w-full" />
-              ) : (
-                <Select value={cursoSel} onChange={(e)=>setCursoSel(e.target.value)}>
-                  {cursos.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.nombre} — {c.anio}° {c.division || ""}
-                    </option>
-                  ))}
-                </Select>
-              )
-            ) : (
-              <div className="text-subtext text-sm">
-                Padres/estudiantes ven solo sus registros del día.
+      <div className="space-y-8">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {summaryData.map((item) => (
+            <div
+              key={item.key}
+              className="flex items-center justify-between gap-3 rounded-3xl border border-white/60 bg-white/90 p-5 shadow-soft backdrop-blur-sm"
+            >
+              <div>
+                <Badge color={item.color}>{item.label}</Badge>
+                <p className="mt-3 text-3xl font-semibold text-text">{item.value}</p>
+                <p className="mt-1 text-xs text-subtext">{item.helper}</p>
               </div>
-            )}
-          </CardBody>
-        </Card>
+              <span aria-hidden className="text-3xl">
+                {item.icon}
+              </span>
+            </div>
+          ))}
+        </section>
 
-        <Card>
-          <CardHeader title="Acciones" />
-          <CardBody className="flex items-center gap-3">
-            {esDocenteOAdmin ? (
-              <Button onClick={guardarMarcas} disabled={cargando}>
-                {cargando ? "Guardando..." : "Guardar asistencia"}
-              </Button>
-            ) : (
-              <div className="text-subtext text-sm">
-                Justificá ausencias desde la tabla.
+        <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
+          <aside className="space-y-4">
+            <Card className="border-white/60 bg-white/90">
+              <CardBody className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/15 text-brand-400 text-xl">
+                    📅
+                  </span>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-subtext/80">Filtro</p>
+                    <p className="text-base font-semibold text-text">Fecha</p>
+                  </div>
+                </div>
+                <Input
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                />
+              </CardBody>
+            </Card>
+
+            <Card className="border-white/60 bg-white/90">
+              <CardBody className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/15 text-brand-400 text-xl">
+                    🎓
+                  </span>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-subtext/80">Filtro</p>
+                    <p className="text-base font-semibold text-text">Curso</p>
+                  </div>
+                </div>
+
+                {esDocenteOAdmin ? (
+                  cursosLoading ? (
+                    <Skeleton className="h-11 w-full rounded-2xl" />
+                  ) : (
+                    <Select value={cursoSel} onChange={(e) => setCursoSel(e.target.value)}>
+                      {cursos.map((c) => (
+                        <option key={c._id} value={c._id}>
+                          {c.nombre} — {c.anio}° {c.division || ""}
+                        </option>
+                      ))}
+                    </Select>
+                  )
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-brand-200 bg-brand-500/5 p-4 text-sm text-subtext">
+                    Padres y estudiantes ven solo su registro diario.
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card className="border-white/60 bg-white/90">
+              <CardBody className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/15 text-brand-400 text-xl">
+                    💾
+                  </span>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-subtext/80">Acción</p>
+                    <p className="text-base font-semibold text-text">Guardar cambios</p>
+                  </div>
+                </div>
+
+                {esDocenteOAdmin ? (
+                  <Button
+                    variant="primary"
+                    onClick={guardarMarcas}
+                    loading={cargando}
+                    className="w-full"
+                  >
+                    {cargando ? "Guardando..." : "Guardar asistencia"}
+                  </Button>
+                ) : (
+                  <div className="rounded-2xl border border-white/60 bg-muted/60 p-4 text-sm text-subtext">
+                    Gestioná justificaciones desde la tabla principal.
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </aside>
+
+          <section className="space-y-4">
+            <div className="rounded-3xl border border-white/60 bg-[linear-gradient(135deg,rgba(224,242,254,0.85),rgba(209,250,229,0.9))] p-6 text-text shadow-soft">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-subtext/80">Registros del día</p>
+                  <h2 className="text-2xl font-semibold">Listado de asistencia</h2>
+                </div>
+                <Badge color="neutral">{fechaLegible}</Badge>
               </div>
-            )}
-          </CardBody>
-        </Card>
-      </div>
+              <p className="mt-3 max-w-2xl text-sm text-subtext">
+                {esDocenteOAdmin
+                  ? "Actualizá los estados y guardá para sincronizar con las familias."
+                  : "Revisá tu asistencia y justificá cualquier ausencia desde los accesos rápidos."}
+              </p>
+            </div>
 
-      {/* Tabla */}
-      <Card>
-        <CardHeader title="Registros de asistencia" subtitle={fecha} />
-        <CardBody>
-          <Table>
-            <table className="w-full text-left">
-              <THead>
-                <tr>
-                  <TH>Alumno</TH>
-                  <TH>Estado</TH>
-                  <TH>Justificación</TH>
-                  <TH>Acciones</TH>
-                </tr>
-              </THead>
-              <tbody>
-                {filas.map((a, idx) => {
-                  const reg = esDocenteOAdmin
-                    ? registros.find((r) => (r.alumno?._id || r.alumno) === a._id)
-                    : registros[idx];
+            <Table variant="soft" className="bg-white/80">
+              <table className="min-w-full text-left text-sm">
+                <THead>
+                  <tr>
+                    <TH>Alumno</TH>
+                    <TH className="w-40">Estado</TH>
+                    <TH>Justificación</TH>
+                    <TH className="w-44">Acciones</TH>
+                  </tr>
+                </THead>
+                <tbody>
+                  {filas.map((a, idx) => {
+                    const reg = esDocenteOAdmin
+                      ? registros.find((r) => (r.alumno?._id || r.alumno) === a._id)
+                      : registros[idx];
 
-                  const estado = esDocenteOAdmin
-                    ? estadoMap.get(a._id) || "presente"
-                    : reg?.estado;
+                    const estado = esDocenteOAdmin
+                      ? estadoMap.get(a._id) || "presente"
+                      : reg?.estado;
 
-                  const asistenciaId = reg?._id;
-                  const justi = reg?.justificacion;
+                    const asistenciaId = reg?._id;
+                    const justi = reg?.justificacion;
 
-                  return (
-                    <TRow key={(a && (a._id || a.id)) || idx}>
-                      <TD>{a?.nombre || "—"}</TD>
+                    const estadoLabel = estado
+                      ? estado.charAt(0).toUpperCase() + estado.slice(1)
+                      : "Sin estado";
 
-                      <TD>
-                        {esDocenteOAdmin ? (
-                          <select id={`estado-${a._id}`} defaultValue={estado} className="p-1">
-                            <option value="presente">Presente</option>
-                            <option value="ausente">Ausente</option>
-                            <option value="tarde">Tarde</option>
-                            <option value="justificado" disabled>Justificado (al aprobar)</option>
-                          </select>
-                        ) : (
-                          <Badge color={
-                            estado === "presente" ? "success" :
-                            estado === "tarde" ? "warn" :
-                            estado === "justificado" ? "brand" : "danger"
-                          }>
-                            {estado}
-                          </Badge>
-                        )}
-                      </TD>
+                    return (
+                      <TRow
+                        key={(a && (a._id || a.id)) || idx}
+                        className={idx % 2 === 0 ? "bg-white/70" : "bg-white/50"}
+                      >
+                        <TD className="font-medium text-text">{a?.nombre || "—"}</TD>
 
-                      <TD>
-                        {justi?.archivoUrl ? (
-                          <div className="text-sm">
-                            <a
-                              href={`${BASE}${justi.archivoUrl}`}
-                              target="_blank"
-                              className="underline"
+                        <TD>
+                          {esDocenteOAdmin ? (
+                            <select
+                              id={`estado-${a._id}`}
+                              defaultValue={estado}
+                              className="w-full rounded-2xl border border-white/70 bg-white px-3 py-2 text-sm text-text shadow-inner focus:outline-none focus:ring-2 focus:ring-brand-300"
                             >
-                              Ver archivo
-                            </a>
-                            <div className="text-xs text-subtext">
-                              {justi.aprobado ? "Aprobado" : "Pendiente"}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-subtext text-sm">—</span>
-                        )}
-                      </TD>
+                              <option value="presente">Presente</option>
+                              <option value="ausente">Ausente</option>
+                              <option value="tarde">Tarde</option>
+                              <option value="justificado" disabled>
+                                Justificado (al aprobar)
+                              </option>
+                            </select>
+                          ) : (
+                            <Badge color={estadoColorMap[estado] || "neutral"}>{estadoLabel}</Badge>
+                          )}
+                        </TD>
 
-                      <TD className="space-x-2">
-                        {esPadre && reg && estado === "ausente" && !justi?.archivoUrl && (
-                          <Button onClick={() => abrirJustificar(asistenciaId)}>
-                            Justificar
-                          </Button>
-                        )}
-                        {esDocenteOAdmin && reg && justi?.archivoUrl && !justi.aprobado && (
-                          <Button onClick={() => abrirAprobar(asistenciaId)}>
-                            Aprobar
-                          </Button>
-                        )}
+                        <TD>
+                          {justi?.archivoUrl ? (
+                            <div className="space-y-1">
+                              <a
+                                href={`${BASE}${justi.archivoUrl}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-brand-500 underline-offset-2 hover:underline"
+                              >
+                                Ver comprobante
+                              </a>
+                              <Badge color={justi.aprobado ? "success" : "warn"}>
+                                {justi.aprobado ? "Aprobado" : "Pendiente"}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-subtext">Sin adjuntos</span>
+                          )}
+                        </TD>
+
+                        <TD>
+                          <div className="flex flex-wrap gap-2">
+                            {esPadre && reg && estado === "ausente" && !justi?.archivoUrl && (
+                              <Button variant="soft" onClick={() => abrirJustificar(asistenciaId)}>
+                                Justificar
+                              </Button>
+                            )}
+                            {esDocenteOAdmin && reg && justi?.archivoUrl && !justi.aprobado && (
+                              <Button variant="success" onClick={() => abrirAprobar(asistenciaId)}>
+                                Aprobar
+                              </Button>
+                            )}
+                          </div>
+                        </TD>
+                      </TRow>
+                    );
+                  })}
+                  {filas.length === 0 && (
+                    <TRow className="bg-white/70">
+                      <TD colSpan={4} className="py-12 text-center text-subtext">
+                        {esDocenteOAdmin
+                          ? "Sin estudiantes cargados para este curso."
+                          : "Aún sin registros de asistencia para hoy."}
                       </TD>
                     </TRow>
-                  );
-                })}
-              </tbody>
-            </table>
-          </Table>
+                  )}
+                </tbody>
+              </table>
+            </Table>
 
-          {!esDocenteOAdmin && registros.length === 0 && (
-            <EmptyState title="Sin registros" desc="No hay asistencias para la fecha seleccionada." />
-          )}
-        </CardBody>
-      </Card>
+            {!esDocenteOAdmin && registros.length === 0 && (
+              <EmptyState
+                title="Sin registros"
+                desc="No hay asistencias para la fecha seleccionada."
+              />
+            )}
+          </section>
+        </div>
+      </div>
 
       {/* --- Modales --- */}
       <Modal
@@ -309,8 +456,16 @@ export default function Asistencia() {
         onClose={() => setJustifyOpen(false)}
         actions={
           <>
-            <Button variant="ghost" onClick={() => setJustifyOpen(false)}>Cancelar</Button>
-            <Button onClick={enviarJustificacion} disabled={!justifyFile}>Enviar</Button>
+            <Button variant="secondary" onClick={() => setJustifyOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              onClick={enviarJustificacion}
+              disabled={!justifyFile}
+            >
+              Enviar
+            </Button>
           </>
         }
       >
@@ -339,8 +494,12 @@ export default function Asistencia() {
         onClose={() => setConfirmOpen(false)}
         actions={
           <>
-            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
-            <Button onClick={aprobarConfirmado}>Aprobar</Button>
+            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="success" onClick={aprobarConfirmado}>
+              Aprobar
+            </Button>
           </>
         }
       >
