@@ -25,8 +25,8 @@ export function ToastProvider({ children }) {
             className={
               "px-4 py-3 rounded-xl shadow-soft border " +
               (t.type === "error"
-                ? "bg-red-500/15 text-red-200 border-red-500/30"
-                : "bg-brand-500/15 text-brand-200 border-brand-500/30")
+                ? "bg-red-50 text-red-700 border-red-200"
+                : "bg-brand-50 text-brand-700 border-brand-200")
             }
           >
             {t.msg}
