@@ -53,6 +53,8 @@ import authRouter from "./routes/auth.js";
 app.use("/api/auth", authRouter);
 import cursosRouter from "./routes/cursos.js";
 app.use("/api/cursos", cursosRouter);
+import usersRouter from "./routes/users.js";
+
 
 // 6) Middlewares de auth/rol y rutas protegidas (DESPUÉS de tener app)
 import { requireAuth, requireRole } from "./middleware/auth.js";
@@ -68,6 +70,7 @@ import anunciosRouter from "./routes/anuncios.js";
 app.use("/api/anuncios", anunciosRouter);
 import asistRouter from "./routes/asistencias.js";
 app.use("/api/asistencias", asistRouter);
+app.use("/api/users", usersRouter);
 
 // 7) Levantar servidor al final
 app.listen(PORT || 5000, () => {
