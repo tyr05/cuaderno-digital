@@ -8,7 +8,7 @@ import { Card, CardHeader, CardBody } from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
-import { Megaphone, CalendarDays } from "lucide-react";
+import { Megaphone, CalendarDays, CheckCircle2, TrendingUp } from "lucide-react";
 import Select from "../components/ui/Select";
 import EmptyState from "../components/ui/EmptyState";
 import Input from "../components/ui/Input";
@@ -103,39 +103,23 @@ export default function Dashboard() {
       onAddNew={esCreador ? () => setOpenNew(true) : undefined}
     >
       {/* Resumen superior */}
-      <div className="grid md:grid-cols-2 gap-4 mb-6">
-        <Card>
-          <CardHeader
-            title="Tus cursos"
-            subtitle="Seleccioná para ver anuncios"
+      <section className="mb-10 space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <HeroSummary
+            user={user}
+            cursos={cursos}
+            cursoSel={cursoSel}
+            onCursoChange={setCursoSel}
+            loading={loading}
+            onCreate={esCreador ? () => setOpenNew(true) : undefined}
           />
-          <CardBody>
-            {loading ? (
-              <div className="text-subtext">Cargando cursos…</div>
-            ) : cursos.length === 0 ? (
-              <div className="text-subtext">No hay cursos.</div>
-            ) : (
-              <Select value={cursoSel} onChange={(e)=>setCursoSel(e.target.value)} className="max-w-md">
-                {cursos.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.nombre} — {c.anio}° {c.division || ""}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </CardBody>
-        </Card>
 
-        <Card>
-          <CardHeader title="Calendario escolar" subtitle="Próximos eventos" />
-          <CardBody>
-            <div className="flex items-center gap-3 text-subtext">
-              <CalendarDays className="h-5 w-5" aria-hidden="true" />
-              <div>Muy pronto: agenda de actos y reuniones</div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+          <div className="space-y-6">
+            <UpcomingEvents />
+            <ProgressHighlights />
+          </div>
+        </div>
+      </section>
 
       {/* Anuncios */}
       <Card>
@@ -225,5 +209,169 @@ export default function Dashboard() {
         )}
       </Modal>
     </Shell>
+  );
+}
+
+function HeroSummary({ user, cursos, cursoSel, onCursoChange, loading, onCreate }) {
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-muted/60 bg-[radial-gradient(circle_at_top,_rgba(79,70,229,0.55),_rgba(15,23,42,0.95))] p-8 text-white shadow-soft">
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-screen" aria-hidden="true" />
+      <div className="relative z-10 flex flex-col gap-8 lg:gap-10">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.2em] text-white/70">Panel principal</p>
+            <h2 className="mt-2 text-3xl font-semibold leading-snug sm:text-4xl">
+              ¡Hola{user?.nombre ? `, ${user.nombre}` : ""}! Organizá tu jornada
+            </h2>
+            <p className="mt-3 max-w-xl text-base text-white/80">
+              Revisá anuncios, seguí el pulso de los cursos y mantené informada a la comunidad educativa desde un solo lugar.
+            </p>
+          </div>
+          <div className="w-full max-w-xs rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+            <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Curso activo</div>
+            {loading ? (
+              <div className="mt-3 text-sm text-white/80">Cargando cursos…</div>
+            ) : cursos.length === 0 ? (
+              <div className="mt-3 text-sm text-white/80">No hay cursos disponibles.</div>
+            ) : (
+              <Select
+                value={cursoSel}
+                onChange={(e) => onCursoChange(e.target.value)}
+                className="mt-3 w-full rounded-xl bg-white/90 text-left text-sm text-slate-900"
+              >
+                {cursos.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.nombre} — {c.anio}° {c.division || ""}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+        </div>
+
+        {onCreate ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={onCreate} className="shadow-soft">
+              Publicar anuncio
+            </Button>
+            <div className="text-sm text-white/70">
+              Compartí novedades con estudiantes, familias y docentes en segundos.
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-white/70">
+            Los anuncios nuevos aparecerán aquí cuando tus docentes los publiquen.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingEvents() {
+  const events = [
+    {
+      id: 1,
+      title: "Reunión de familias",
+      description: "3° ciclo — Aula magna",
+      date: "12 Jun",
+      tone: "text-emerald-600 bg-emerald-50",
+    },
+    {
+      id: 2,
+      title: "Entrega de boletines",
+      description: "Turno mañana",
+      date: "22 Jun",
+      tone: "text-sky-600 bg-sky-50",
+    },
+    {
+      id: 3,
+      title: "Acto Día de la Bandera",
+      description: "Organiza 4° año",
+      date: "20 Jun",
+      tone: "text-violet-600 bg-violet-50",
+    },
+  ];
+
+  return (
+    <div className="rounded-3xl border border-muted/60 bg-card/70 p-6 shadow-soft">
+      <div className="flex items-center gap-3">
+        <span className="rounded-full bg-brand/10 p-2 text-brand">
+          <CalendarDays className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div>
+          <h3 className="text-lg font-semibold text-title">Próximos eventos</h3>
+          <p className="text-sm text-subtext">Agenda destacada para los próximos días.</p>
+        </div>
+      </div>
+
+      <ul className="mt-5 space-y-4">
+        {events.map((event) => (
+          <li
+            key={event.id}
+            className="flex items-center justify-between rounded-2xl border border-muted/50 bg-white/50 px-4 py-3 text-sm text-subtext backdrop-blur"
+          >
+            <div>
+              <div className="font-semibold text-title">{event.title}</div>
+              <div>{event.description}</div>
+            </div>
+            <span className={`rounded-xl px-3 py-1 text-xs font-semibold ${event.tone}`}>
+              {event.date}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ProgressHighlights() {
+  const highlights = [
+    {
+      id: 1,
+      label: "Asistencias registradas",
+      value: 82,
+      icon: CheckCircle2,
+      tone: "text-emerald-600",
+    },
+    {
+      id: 2,
+      label: "Tareas entregadas",
+      value: 64,
+      icon: TrendingUp,
+      tone: "text-sky-600",
+    },
+  ];
+
+  return (
+    <div className="rounded-3xl border border-muted/60 bg-card/70 p-6 shadow-soft">
+      <h3 className="text-lg font-semibold text-title">Avances rápidos</h3>
+      <p className="text-sm text-subtext">Seguimiento de indicadores clave de la semana.</p>
+
+      <div className="mt-6 space-y-4">
+        {highlights.map(({ id, label, value, icon: Icon, tone }) => (
+          <div
+            key={id}
+            className="rounded-2xl border border-muted/40 bg-white/60 p-4 backdrop-blur transition hover:border-brand/40"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-subtext">{label}</div>
+                <div className="mt-1 text-2xl font-semibold text-title">{value}%</div>
+              </div>
+              <span className={`rounded-full bg-brand/5 p-2 ${tone}`}>
+                <Icon className="h-5 w-5" aria-hidden="true" />
+              </span>
+            </div>
+            <div className="mt-3 h-2 rounded-full bg-muted/40">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-brand to-brand/50"
+                style={{ width: `${value}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
