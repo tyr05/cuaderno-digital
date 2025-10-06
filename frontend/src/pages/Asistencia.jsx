@@ -46,6 +46,13 @@ export default function Asistencia() {
   const esDocenteOAdmin = user?.rol === "docente" || user?.rol === "admin";
   const esPadre = user?.rol === "padre";
   const esEstudiante = user?.rol === "estudiante";
+  const tabs = [
+    { to: "/", label: "Inicio" },
+    { to: "/asistencia", label: "Asistencia" },
+  ];
+  if (esDocenteOAdmin) {
+    tabs.push({ to: "/estudiantes", label: "Estudiantes" });
+  }
 
   // Cargar cursos para docente/admin
   useEffect(() => {
@@ -213,10 +220,7 @@ export default function Asistencia() {
 
   return (
     <Shell
-      tabs={[
-        { to: "/", label: "Inicio" },
-        { to: "/asistencia", label: "Asistencia" },
-      ]}
+      tabs={tabs}
     >
       <div className="space-y-8">
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
