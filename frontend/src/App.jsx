@@ -4,6 +4,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Asistencia from "./pages/Asistencia";
+import Estudiantes from "./pages/Estudiantes";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -19,6 +20,10 @@ export default function App() {
           <Route
             path="/asistencia"
             element={<PrivateRoute><Asistencia /></PrivateRoute>}
+          />
+          <Route
+            path="/estudiantes"
+            element={<PrivateRoute><Estudiantes /></PrivateRoute>}
           />
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -30,6 +30,13 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
 
   const esCreador = user?.rol === "admin" || user?.rol === "docente";
+  const tabs = [
+    { to: "/", label: "Inicio" },
+    { to: "/asistencia", label: "Asistencia" },
+  ];
+  if (esCreador) {
+    tabs.push({ to: "/estudiantes", label: "Estudiantes" });
+  }
 
   // Cargar cursos
   useEffect(() => {
@@ -89,10 +96,7 @@ export default function Dashboard() {
 
   return (
     <Shell
-      tabs={[
-        { to: "/", label: "Inicio" },
-        { to: "/asistencia", label: "Asistencia" },
-      ]}
+      tabs={tabs}
       title="Panel principal"
       description={
         cursoActual
