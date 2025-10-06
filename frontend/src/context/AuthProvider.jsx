@@ -11,7 +11,14 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     // Hidratar desde localStorage
     const u = localStorage.getItem("user");
-    if (u) setUser(JSON.parse(u));
+    if (u) {
+      try {
+        setUser(JSON.parse(u));
+      } catch (error) {
+        console.warn("Failed to parse user from localStorage", error);
+        localStorage.removeItem("user");
+      }
+    }
     setLoading(false);
   }, []);
 
