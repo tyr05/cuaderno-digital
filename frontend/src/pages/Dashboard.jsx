@@ -51,13 +51,18 @@ export default function Dashboard() {
       setLoading(true);
       try {
         const list = await apiGet("/api/cursos");
-        setCursos(list);
-        if (list[0]?._id) setCursoSel(list[0]._id);
+        setCursos(Array.isArray(list) ? list : []);
+        setCursoSel(list?.[0]?._id || "");
+      } catch (error) {
+        console.error("No se pudieron cargar los cursos", error);
+        setCursos([]);
+        setCursoSel("");
+        toast?.show?.(error?.error || "No se pudieron cargar los cursos", "error");
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     setAlumnoSel("todos");
