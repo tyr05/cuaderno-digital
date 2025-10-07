@@ -33,6 +33,7 @@ export default function Estudiantes() {
   const [resumenes, setResumenes] = useState({});
 
   const toast = useToast();
+  const toastShow = toast?.show;
 
   const autorizado = user?.rol === "admin" || user?.rol === "docente";
 
@@ -50,13 +51,13 @@ export default function Estudiantes() {
         setCursos(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("No se pudieron cargar los cursos", error);
-        toast?.show?.(error?.error || "No se pudieron cargar los cursos", "error");
+        toastShow?.(error?.error || "No se pudieron cargar los cursos", "error");
         setCursos([]);
       } finally {
         setLoading(false);
       }
     })();
-  }, [autorizado, toast]);
+  }, [autorizado, toastShow]);
 
   async function importarAlumnos(file, cursoId) {
     if (!file || !cursoId) return;
@@ -80,9 +81,9 @@ export default function Estudiantes() {
           resumen.procesados === 0
             ? "No se encontraron filas para importar"
             : `Importación completada: ${resumen.vinculados} agregados, ${resumen.creados} nuevos.`;
-        toast?.show?.(mensaje, "success");
+        toastShow?.(mensaje, "success");
         if (resumen.omitidos?.length) {
-          toast?.show?.(
+          toastShow?.(
             `${resumen.omitidos.length} fila(s) omitida(s) por faltar datos. Revisá el detalle en el curso.`,
             "error",
           );
@@ -90,7 +91,7 @@ export default function Estudiantes() {
       }
     } catch (error) {
       console.error("Error importando alumnos", error);
-      toast?.show?.(error?.error || "No se pudo importar la lista", "error");
+      toastShow?.(error?.error || "No se pudo importar la lista", "error");
     } finally {
       setImportingFor(null);
     }
