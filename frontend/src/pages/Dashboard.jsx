@@ -8,10 +8,11 @@ import { Card, CardHeader, CardBody } from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
-import { Megaphone, CalendarDays, CheckCircle2, TrendingUp } from "lucide-react";
+import { Megaphone, CalendarDays, CheckCircle2, TrendingUp, AlertCircle } from "lucide-react";
 import Select from "../components/ui/Select";
 import EmptyState from "../components/ui/EmptyState";
 import Input from "../components/ui/Input";
+import Skeleton from "../components/ui/Skeleton";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -21,6 +22,8 @@ export default function Dashboard() {
   const [cursoSel, setCursoSel] = useState("");
   const [anuncios, setAnuncios] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resumen, setResumen] = useState(null);
+  const [loadingResumen, setLoadingResumen] = useState(false);
 
   // Modal "Nuevo anuncio"
   const [openNew, setOpenNew] = useState(false);
@@ -61,6 +64,24 @@ export default function Dashboard() {
         list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setAnuncios(list);
       } catch { /* toasts por api.js */ }
+    })();
+  }, [cursoSel]);
+
+  // Resumen de asistencia y métricas
+  useEffect(() => {
+    (async () => {
+      setLoadingResumen(true);
+      try {
+        const params = new URLSearchParams();
+        if (cursoSel) params.set("curso", cursoSel);
+        params.set("ultimosDias", "7");
+        const data = await apiGet(`/api/asistencias/resumen?${params.toString()}`);
+        setResumen(data);
+      } catch {
+        setResumen(null);
+      } finally {
+        setLoadingResumen(false);
+      }
     })();
   }, [cursoSel]);
 
@@ -116,11 +137,13 @@ export default function Dashboard() {
             onCursoChange={setCursoSel}
             loading={loading}
             onCreate={esCreador ? () => setOpenNew(true) : undefined}
+            resumen={resumen}
+            resumenLoading={loadingResumen}
           />
 
           <div className="space-y-6">
             <UpcomingEvents />
-            <ProgressHighlights />
+            <ProgressHighlights resumen={resumen} loading={loadingResumen} />
           </div>
         </div>
       </section>
@@ -216,7 +239,19 @@ export default function Dashboard() {
   );
 }
 
-function HeroSummary({ user, cursos, cursoSel, onCursoChange, loading, onCreate }) {
+function HeroSummary({
+  user,
+  cursos,
+  cursoSel,
+  onCursoChange,
+  loading,
+  onCreate,
+  resumen,
+  resumenLoading,
+}) {
+  const presentes = resumen?.estados?.presente;
+  const tarde = resumen?.llegadasTarde;
+
   return (
     <div className="relative overflow-hidden rounded-3xl border border-muted/50 bg-gradient-to-br from-brand-100 via-brand-50 to-white p-8 text-text shadow-soft">
       <div className="relative z-10 flex flex-col gap-8 lg:gap-10">
@@ -255,13 +290,31 @@ function HeroSummary({ user, cursos, cursoSel, onCursoChange, loading, onCreate 
             <div className="grid w-full grid-cols-2 gap-3">
               <div className="rounded-2xl border border-white/60 bg-white/90 p-3 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-subtext/80">Participación</p>
-                <p className="mt-2 text-2xl font-semibold text-brand-700">87%</p>
-                <p className="text-xs text-subtext">En las últimas 24 h</p>
+                {resumenLoading ? (
+                  <Skeleton className="mt-2 h-7 w-20 rounded-xl" />
+                ) : presentes ? (
+                  <>
+                    <p className="mt-2 text-2xl font-semibold text-brand-700">{presentes.porcentaje}%</p>
+                    <p className="text-xs text-subtext">
+                      {presentes.total} registros positivos en 7 días
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-subtext">Sin datos disponibles</p>
+                )}
               </div>
               <div className="rounded-2xl border border-brand-200/60 bg-brand-500/10 p-3 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-brand-700/70">Próxima entrega</p>
-                <p className="mt-2 text-lg font-semibold text-brand-700">Viernes 14:00</p>
-                <p className="text-xs text-subtext">Recordatorio automático listo</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-brand-700/70">Llegadas tarde</p>
+                {resumenLoading ? (
+                  <Skeleton className="mt-2 h-6 w-16 rounded-xl" />
+                ) : tarde ? (
+                  <>
+                    <p className="mt-2 text-lg font-semibold text-brand-700">{tarde.total}</p>
+                    <p className="text-xs text-subtext">{tarde.porcentaje}% del período</p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm text-subtext">Aún sin registros</p>
+                )}
               </div>
             </div>
           </div>
@@ -343,23 +396,48 @@ function UpcomingEvents() {
   );
 }
 
-function ProgressHighlights() {
-  const highlights = [
-    {
-      id: 1,
-      label: "Asistencias registradas",
-      value: 82,
-      icon: CheckCircle2,
-      tone: "text-emerald-600",
-    },
-    {
-      id: 2,
-      label: "Tareas entregadas",
-      value: 64,
-      icon: TrendingUp,
-      tone: "text-sky-600",
-    },
-  ];
+function ProgressHighlights({ resumen, loading }) {
+  const items = resumen
+    ? [
+        {
+          id: "presentes",
+          label: "Asistencias registradas",
+          value: resumen.estados?.presente?.porcentaje ?? 0,
+          helper: `${resumen.estados?.presente?.total || 0} presentes`,
+          icon: CheckCircle2,
+          tone: "text-emerald-600",
+          bar: "from-emerald-500 to-emerald-300",
+        },
+        {
+          id: "ausentes",
+          label: "Ausencias detectadas",
+          value: resumen.estados?.ausente?.porcentaje ?? 0,
+          helper: `${resumen.estados?.ausente?.total || 0} registros`,
+          icon: AlertCircle,
+          tone: "text-rose-600",
+          bar: "from-rose-500 to-rose-300",
+        },
+        {
+          id: "tarde",
+          label: "Llegadas tarde",
+          value: resumen.estados?.tarde?.porcentaje ?? 0,
+          helper: `${resumen.estados?.tarde?.total || 0} ingresos demorados`,
+          icon: TrendingUp,
+          tone: "text-amber-600",
+          bar: "from-amber-500 to-amber-300",
+        },
+        {
+          id: "justificados",
+          label: "Justificaciones pendientes",
+          value: resumen.justificacionesPendientes || 0,
+          helper: "En espera de aprobación",
+          icon: Megaphone,
+          tone: "text-sky-600",
+          bar: "from-sky-500 to-sky-300",
+          isAbsolute: true,
+        },
+      ]
+    : [];
 
   return (
     <div className="rounded-3xl border border-muted/60 bg-card/70 p-6 shadow-soft">
@@ -367,28 +445,45 @@ function ProgressHighlights() {
       <p className="text-sm text-subtext">Seguimiento de indicadores clave de la semana.</p>
 
       <div className="mt-6 space-y-4">
-        {highlights.map(({ id, label, value, icon: Icon, tone }) => (
-          <div
-            key={id}
-            className="rounded-2xl border border-muted/40 bg-white/60 p-4 backdrop-blur transition hover:border-brand/40"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-subtext">{label}</div>
-                <div className="mt-1 text-2xl font-semibold text-text">{value}%</div>
-              </div>
-              <span className={`rounded-full bg-brand/5 p-2 ${tone}`}>
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-            </div>
-            <div className="mt-3 h-2 rounded-full bg-muted/40">
+        {loading ? (
+          <>
+            <Skeleton className="h-20 w-full rounded-2xl" />
+            <Skeleton className="h-20 w-full rounded-2xl" />
+          </>
+        ) : items.length === 0 ? (
+          <EmptyState title="Sin datos" desc="No se registraron asistencias en el período." />
+        ) : (
+          items.map((item) => {
+            const { id, label, value, helper, icon: Icon, tone, bar, isAbsolute } = item;
+            return (
               <div
-                className="h-full rounded-full bg-gradient-to-r from-brand to-brand/50"
-                style={{ width: `${value}%` }}
-              />
-            </div>
-          </div>
-        ))}
+                key={id}
+                className="rounded-2xl border border-muted/40 bg-white/60 p-4 backdrop-blur transition hover:border-brand/40"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-subtext">{label}</div>
+                    <div className="mt-1 text-2xl font-semibold text-text">
+                      {isAbsolute ? value : `${value}%`}
+                    </div>
+                    <p className="text-xs text-subtext">{helper}</p>
+                  </div>
+                  <span className={`rounded-full bg-brand/5 p-2 ${tone}`}>
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                </div>
+                {!isAbsolute && (
+                  <div className="mt-3 h-2 rounded-full bg-muted/40">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${bar}`}
+                      style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
