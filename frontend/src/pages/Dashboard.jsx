@@ -1,5 +1,5 @@
 // frontend/src/pages/Dashboard.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthProvider";
 import { apiGet, apiPost } from "../api";
 import Shell from "../components/Shell";
@@ -10,6 +10,7 @@ import Modal from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { Megaphone, CalendarDays, CheckCircle2, TrendingUp, AlertCircle } from "lucide-react";
 import Select from "../components/ui/Select";
+import DropdownSelect from "../components/ui/DropdownSelect";
 import EmptyState from "../components/ui/EmptyState";
 import Input from "../components/ui/Input";
 import Skeleton from "../components/ui/Skeleton";
@@ -24,12 +25,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [resumen, setResumen] = useState(null);
   const [loadingResumen, setLoadingResumen] = useState(false);
+  const [alumnoSel, setAlumnoSel] = useState("todos");
 
   // Modal "Nuevo anuncio"
   const [openNew, setOpenNew] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [contenido, setContenido] = useState("");
   const [visiblePara, setVisiblePara] = useState("todos");
+  const [alcance, setAlcance] = useState("curso");
+  const [alumnoDestino, setAlumnoDestino] = useState("");
   const [saving, setSaving] = useState(false);
 
   const esCreador = user?.rol === "admin" || user?.rol === "docente";
@@ -55,17 +59,29 @@ export default function Dashboard() {
     })();
   }, []);
 
+  useEffect(() => {
+    setAlumnoSel("todos");
+  }, [cursoSel]);
+
   // Cargar anuncios del curso
   useEffect(() => {
-    if (!cursoSel) return;
+    if (!cursoSel) {
+      setAnuncios([]);
+      return;
+    }
     (async () => {
       try {
-        const list = await apiGet(`/api/anuncios?curso=${cursoSel}`);
+        const params = new URLSearchParams();
+        params.set("curso", cursoSel);
+        if (alumnoSel && alumnoSel !== "todos") {
+          params.set("alumno", alumnoSel);
+        }
+        const list = await apiGet(`/api/anuncios?${params.toString()}`);
         list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setAnuncios(list);
       } catch { /* toasts por api.js */ }
     })();
-  }, [cursoSel]);
+  }, [cursoSel, alumnoSel]);
 
   // Resumen de asistencia y métricas
   useEffect(() => {
@@ -90,6 +106,10 @@ export default function Dashboard() {
       toast.show("Completá título y contenido", "error");
       return;
     }
+    if (alcance === "alumno" && !alumnoDestino) {
+      toast.show("Elegí un estudiante destinatario", "error");
+      return;
+    }
     setSaving(true);
     try {
       await apiPost("/api/anuncios", {
@@ -97,13 +117,21 @@ export default function Dashboard() {
         contenido: contenido.trim(),
         visiblePara,
         curso: cursoSel,
+        alumno: alcance === "alumno" ? alumnoDestino : undefined,
       });
       setOpenNew(false);
       setTitulo("");
       setContenido("");
       setVisiblePara("todos");
+      setAlcance("curso");
+      setAlumnoDestino("");
 
-      const list = await apiGet(`/api/anuncios?curso=${cursoSel}`);
+      const params = new URLSearchParams();
+      params.set("curso", cursoSel);
+      if (alumnoSel && alumnoSel !== "todos") {
+        params.set("alumno", alumnoSel);
+      }
+      const list = await apiGet(`/api/anuncios?${params.toString()}`);
       list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setAnuncios(list);
 
@@ -114,6 +142,22 @@ export default function Dashboard() {
   }
 
   const cursoActual = cursos.find((c) => c._id === cursoSel);
+  const alumnosCursoActual = useMemo(
+    () => (cursoActual?.alumnos ? cursoActual.alumnos : []),
+    [cursoActual],
+  );
+
+  useEffect(() => {
+    if (alcance !== "alumno") return;
+    if (!alumnosCursoActual.some((a) => a._id === alumnoDestino)) {
+      setAlumnoDestino("");
+    }
+  }, [alcance, alumnosCursoActual, alumnoDestino]);
+
+  const alumnoActual = useMemo(
+    () => alumnosCursoActual.find((a) => a._id === alumnoSel) || null,
+    [alumnosCursoActual, alumnoSel],
+  );
 
   return (
     <Shell
@@ -139,6 +183,10 @@ export default function Dashboard() {
             onCreate={esCreador ? () => setOpenNew(true) : undefined}
             resumen={resumen}
             resumenLoading={loadingResumen}
+            alumnoSel={alumnoSel}
+            onAlumnoChange={setAlumnoSel}
+            alumnos={alumnosCursoActual}
+            mostrarFiltroAlumnos={esCreador}
           />
 
           <div className="space-y-6">
@@ -152,7 +200,13 @@ export default function Dashboard() {
       <Card>
         <CardHeader
           title="Anuncios"
-          subtitle={cursoSel ? "Del curso seleccionado" : "Seleccioná un curso"}
+          subtitle={
+            cursoSel
+              ? alumnoSel === "todos"
+                ? "Del curso seleccionado"
+                : `Personalizados para ${alumnoActual?.nombre || "el estudiante"}`
+              : "Seleccioná un curso"
+          }
         />
         <CardBody>
           {anuncios.length === 0 ? (
@@ -172,6 +226,11 @@ export default function Dashboard() {
                   </div>
                   <div className="mt-1 text-lg font-semibold">{a.titulo}</div>
                   <div className="text-sm text-text/90 whitespace-pre-line">{a.contenido}</div>
+                  {a.alumno ? (
+                    <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-3 py-1 text-xs font-semibold text-brand-700">
+                      🎯 Dirigido a {a.alumno.nombre}
+                    </div>
+                  ) : null}
                   <div className="text-xs text-subtext mt-1">
                     Autor: {a.autor?.nombre}
                     {a.visiblePara && a.visiblePara !== "todos" ? ` — visible para ${a.visiblePara}` : ""}
@@ -187,10 +246,29 @@ export default function Dashboard() {
       <Modal
         open={openNew}
         title="Publicar anuncio"
-        onClose={() => setOpenNew(false)}
+        onClose={() => {
+          setOpenNew(false);
+          setTitulo("");
+          setContenido("");
+          setVisiblePara("todos");
+          setAlcance("curso");
+          setAlumnoDestino("");
+        }}
         actions={
           <>
-            <Button variant="ghost" onClick={() => setOpenNew(false)}>Cancelar</Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setOpenNew(false);
+                setTitulo("");
+                setContenido("");
+                setVisiblePara("todos");
+                setAlcance("curso");
+                setAlumnoDestino("");
+              }}
+            >
+              Cancelar
+            </Button>
             <Button onClick={crearAnuncio} disabled={saving}>
               {saving ? "Publicando…" : "Publicar"}
             </Button>
@@ -201,13 +279,17 @@ export default function Dashboard() {
           <div className="text-subtext">No hay cursos disponibles.</div>
         ) : (
           <div className="space-y-3">
-            <Select label="Curso" value={cursoSel} onChange={(e) => setCursoSel(e.target.value)}>
-              {cursos.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.nombre} — {c.anio}° {c.division || ""}
-                </option>
-              ))}
-            </Select>
+            <DropdownSelect
+              label="Curso"
+              value={cursoSel}
+              onChange={(next) => setCursoSel(next)}
+              options={cursos.map((c) => ({
+                value: c._id,
+                title: c.nombre,
+                subtitle: `${c.anio}° ${c.division || ""}${c.turno ? ` · Turno ${c.turno}` : ""}`,
+              }))}
+              placeholder="Elegí un curso"
+            />
 
             <Input
               label="Título"
@@ -225,6 +307,65 @@ export default function Dashboard() {
                 placeholder="Detalles del anuncio…"
               />
             </label>
+
+            <div className="rounded-2xl border border-muted/60 bg-muted/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-subtext/80">Alcance</p>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {["curso", "alumno"].map((key) => {
+                  const active = alcance === key;
+                  const labels = {
+                    curso: {
+                      title: "Curso completo",
+                      desc: "Lo verán todos en el curso seleccionado",
+                    },
+                    alumno: {
+                      title: "Estudiante",
+                      desc: "Mensaje personalizado para un alumno",
+                    },
+                  };
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setAlcance(key)}
+                      className={`rounded-xl border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-brand-400/40 ${
+                        active
+                          ? "border-brand-300 bg-brand-50 text-brand-700"
+                          : "border-transparent bg-white text-text hover:border-brand-100"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold">{labels[key].title}</p>
+                      <p className="text-xs text-subtext">{labels[key].desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {alcance === "alumno" && (
+                <DropdownSelect
+                  className="mt-3"
+                  label="Estudiante destinatario"
+                  value={alumnoDestino}
+                  onChange={(next) => setAlumnoDestino(next)}
+                  options={alumnosCursoActual.map((a) => ({
+                    value: a._id,
+                    title: a.nombre,
+                    subtitle: a.email || "Sin correo registrado",
+                  }))}
+                  placeholder={
+                    alumnosCursoActual.length === 0
+                      ? "Este curso no tiene estudiantes"
+                      : "Elegí un estudiante"
+                  }
+                  disabled={alumnosCursoActual.length === 0}
+                  helper={
+                    alumnosCursoActual.length === 0
+                      ? "Agregá estudiantes al curso para enviar anuncios personalizados"
+                      : ""
+                  }
+                />
+              )}
+            </div>
 
             <Select label="Visible para" value={visiblePara} onChange={(e) => setVisiblePara(e.target.value)}>
               <option value="todos">Todos</option>
@@ -248,9 +389,39 @@ function HeroSummary({
   onCreate,
   resumen,
   resumenLoading,
+  alumnoSel,
+  onAlumnoChange,
+  alumnos,
+  mostrarFiltroAlumnos = false,
 }) {
   const presentes = resumen?.estados?.presente;
   const tarde = resumen?.llegadasTarde;
+  const cursoOptions = useMemo(
+    () =>
+      cursos.map((c) => ({
+        value: c._id,
+        title: c.nombre,
+        subtitle: `${c.anio}° ${c.division || ""}${c.turno ? ` · Turno ${c.turno}` : ""}`,
+      })),
+    [cursos],
+  );
+  const alumnoOptions = useMemo(() => {
+    const base = [
+      {
+        value: "todos",
+        title: "Todos los estudiantes",
+        subtitle: "Ver anuncios generales y personalizados",
+      },
+    ];
+    if (!Array.isArray(alumnos)) return base;
+    return base.concat(
+      alumnos.map((a) => ({
+        value: a._id,
+        title: a.nombre,
+        subtitle: a.email || "Sin correo registrado",
+      })),
+    );
+  }, [alumnos]);
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-muted/50 bg-gradient-to-br from-brand-100 via-brand-50 to-white p-8 text-text shadow-soft">
@@ -273,19 +444,33 @@ function HeroSummary({
               ) : cursos.length === 0 ? (
                 <div className="mt-3 text-sm text-subtext">No hay cursos disponibles.</div>
               ) : (
-                <Select
+                <DropdownSelect
+                  className="mt-3"
                   value={cursoSel}
-                  onChange={(e) => onCursoChange(e.target.value)}
-                  className="mt-3 w-full"
-                  selectClassName="rounded-xl border border-muted/60 bg-white text-left text-sm text-text shadow-sm"
-                >
-                  {cursos.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.nombre} — {c.anio}° {c.division || ""}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(next) => onCursoChange(next)}
+                  options={cursoOptions}
+                  placeholder="Elegí un curso"
+                  buttonClassName="border border-muted/60 bg-white text-left text-sm text-text shadow-sm"
+                />
               )}
+              {mostrarFiltroAlumnos ? (
+                <DropdownSelect
+                  className="mt-4"
+                  label="Filtrar anuncios"
+                  value={cursoSel ? alumnoSel : "todos"}
+                  onChange={(next) => onAlumnoChange(next)}
+                  options={alumnoOptions}
+                  placeholder="Todos los estudiantes"
+                  disabled={!cursoSel}
+                  helper={
+                    !cursoSel
+                      ? "Seleccioná un curso para elegir estudiantes"
+                      : alumnoSel !== "todos"
+                        ? "Mostrando anuncios generales y personalizados"
+                        : undefined
+                  }
+                />
+              ) : null}
             </div>
             <div className="grid w-full grid-cols-2 gap-3">
               <div className="rounded-2xl border border-white/60 bg-white/90 p-3 shadow-sm">
