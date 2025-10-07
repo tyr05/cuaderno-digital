@@ -5,10 +5,32 @@ export function setApiToast(fn) {
   toastFn = fn;
 }
 
+function isLoopback(hostname = "") {
+  return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+}
+
 function resolveBaseUrl() {
   const envUrl = import.meta.env.VITE_API_URL?.trim();
   if (envUrl) {
-    return envUrl.replace(/\/$/, "");
+    try {
+      const parsed = new URL(envUrl);
+
+      if (
+        typeof window !== "undefined" &&
+        isLoopback(parsed.hostname) &&
+        window.location.hostname &&
+        !isLoopback(window.location.hostname)
+      ) {
+        const port = parsed.port ? `:${parsed.port}` : "";
+        const pathname = parsed.pathname.replace(/\/$/, "");
+        return `${parsed.protocol}//${window.location.hostname}${port}${pathname}`;
+      }
+
+      return parsed.origin + parsed.pathname.replace(/\/$/, "");
+    } catch (error) {
+      console.warn("VITE_API_URL inválida, usando valor tal cual", error);
+      return envUrl.replace(/\/$/, "");
+    }
   }
 
   if (typeof window === "undefined") {
