@@ -6,11 +6,12 @@ const anuncioSchema = new mongoose.Schema(
     contenido: { type: String, required: true },
     curso: { type: mongoose.Schema.Types.ObjectId, ref: "Curso", required: true },
     autor: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    alumno: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     visiblePara: {
       type: String,
       enum: ["todos", "padres", "estudiantes", "docentes"],
       default: "todos",
-    }
+    },
     // más adelante podemos sumar: fechaHasta, archivos, etiquetas, etc.
   },
   { timestamps: true }

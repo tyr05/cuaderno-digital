@@ -9,7 +9,7 @@ import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import Input from "../components/ui/Input";
-import Select from "../components/ui/Select";
+import DropdownSelect from "../components/ui/DropdownSelect";
 import { Table, THead, TRow, TH, TD } from "../components/ui/Table";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
@@ -224,6 +224,15 @@ export default function Asistencia() {
       return fecha;
     }
   }, [fecha]);
+  const cursoOptions = useMemo(
+    () =>
+      cursos.map((curso) => ({
+        value: curso._id,
+        title: curso.nombre,
+        subtitle: `${curso.anio}° ${curso.division || ""}${curso.turno ? ` · Turno ${curso.turno}` : ""}`,
+      })),
+    [cursos],
+  );
 
   const estadoColorMap = {
     presente: "success",
@@ -291,14 +300,17 @@ export default function Asistencia() {
                 {esDocenteOAdmin ? (
                   cursosLoading ? (
                     <Skeleton className="h-11 w-full rounded-2xl" />
+                  ) : cursos.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-brand-200 bg-brand-500/5 p-4 text-sm text-subtext">
+                      Aún no hay cursos asignados.
+                    </div>
                   ) : (
-                    <Select value={cursoSel} onChange={(e) => setCursoSel(e.target.value)}>
-                      {cursos.map((c) => (
-                        <option key={c._id} value={c._id}>
-                          {c.nombre} — {c.anio}° {c.division || ""}
-                        </option>
-                      ))}
-                    </Select>
+                    <DropdownSelect
+                      value={cursoSel}
+                      onChange={(next) => setCursoSel(next)}
+                      options={cursoOptions}
+                      placeholder="Elegí un curso"
+                    />
                   )
                 ) : (
                   <div className="rounded-2xl border border-dashed border-brand-200 bg-brand-500/5 p-4 text-sm text-subtext">
