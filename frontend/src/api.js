@@ -5,7 +5,34 @@ export function setApiToast(fn) {
   toastFn = fn;
 }
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+function resolveBaseUrl() {
+  const envUrl = import.meta.env.VITE_API_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/$/, "");
+  }
+
+  if (typeof window === "undefined") {
+    return "http://localhost:5000";
+  }
+
+  const { protocol, hostname } = window.location;
+  const isLocalHost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.startsWith("192.168.") ||
+    hostname.startsWith("10.") ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+    hostname.endsWith(".local");
+
+  if (isLocalHost) {
+    const apiPort = import.meta.env.VITE_API_PORT || "5000";
+    return `${protocol}//${hostname}:${apiPort}`;
+  }
+
+  return window.location.origin;
+}
+
+const BASE = resolveBaseUrl();
 
 function authHeaders(extra = {}) {
   const token = localStorage.getItem("token");
