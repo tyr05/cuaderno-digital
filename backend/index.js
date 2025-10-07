@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import { UPLOAD_DIR } from "./middleware/upload.js";
 
 // 1) Cargar .env primero
 dotenv.config();
@@ -28,30 +29,8 @@ mongoose
   .connect(MONGO_URI)
   .then(() => console.log("✅ Conectado a MongoDB"))
   .catch((err) => console.error("❌ Error MongoDB:", err.message));
-import path from "path";
-import multer from "multer";
-
-// Servir /uploads como estático
-app.use("/uploads", express.static("uploads"));
-
-// Configurar Multer (archivos: PDF/JPG/PNG hasta 5 MB)
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, "uploads"),
-  filename: (_req, file, cb) => {
-    // yyyy-mm-dd_hhmmss-original.ext
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    const safe = file.originalname.replace(/\s+/g, "_");
-    cb(null, `${ts}-${safe}`);
-  }
-});
-export const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const ok = ["application/pdf", "image/jpeg", "image/png"].includes(file.mimetype);
-    cb(ok ? null : new Error("Tipo de archivo no permitido (solo PDF/JPG/PNG)"));
-  }
-});
+// Servir /uploads como estático reutilizando la misma configuración centralizada
+app.use("/uploads", express.static(UPLOAD_DIR));
 
 // 4) Rutas simples de vida
 app.get("/", (_req, res) => {
