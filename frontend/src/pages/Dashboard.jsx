@@ -214,18 +214,23 @@ export default function Dashboard() {
           ) : (
             <ul className="space-y-3">
               {anuncios.map((a) => (
-                <li key={a._id} className="p-4 rounded-2xl border border-muted bg-surface hover:bg-card transition">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-subtext">
+                <li
+                  key={a._id}
+                  className="rounded-2xl border border-muted bg-surface p-4 transition hover:bg-card"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2 text-subtext">
                       <Megaphone className="h-4 w-4" aria-hidden="true" />
                       <span>{a.curso?.nombre}</span>
                       <span>•</span>
                       <span>{new Date(a.createdAt).toLocaleString("es-AR")}</span>
                     </div>
-                    <Badge color="brand">{a.autor?.rol}</Badge>
+                    <Badge color="brand" className="w-fit">
+                      {a.autor?.rol}
+                    </Badge>
                   </div>
                   <div className="mt-1 text-lg font-semibold">{a.titulo}</div>
-                  <div className="text-sm text-text/90 whitespace-pre-line">{a.contenido}</div>
+                  <div className="break-words whitespace-pre-line text-sm text-text/90">{a.contenido}</div>
                   {a.alumno ? (
                     <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-3 py-1 text-xs font-semibold text-brand-700">
                       🎯 Dirigido a {a.alumno.nombre}
@@ -424,7 +429,7 @@ function HeroSummary({
   }, [alumnos]);
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-muted/50 bg-gradient-to-br from-brand-100 via-brand-50 to-white p-8 text-text shadow-soft">
+    <div className="relative overflow-hidden rounded-3xl border border-muted/50 bg-gradient-to-br from-brand-100 via-brand-50 to-white p-6 text-text shadow-soft sm:p-8">
       <div className="relative z-10 flex flex-col gap-8 lg:gap-10">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-xl">
@@ -472,7 +477,7 @@ function HeroSummary({
                 />
               ) : null}
             </div>
-            <div className="grid w-full grid-cols-2 gap-3">
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/60 bg-white/90 p-3 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-subtext/80">Participación</p>
                 {resumenLoading ? (
@@ -506,7 +511,7 @@ function HeroSummary({
         </div>
 
         {onCreate ? (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Button onClick={onCreate} className="shadow-soft">
               Publicar anuncio
             </Button>
@@ -551,11 +556,11 @@ function UpcomingEvents() {
 
   return (
     <div className="rounded-3xl border border-muted/60 bg-card/70 p-6 shadow-soft">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="rounded-full bg-brand/10 p-2 text-brand">
           <CalendarDays className="h-5 w-5" aria-hidden="true" />
         </span>
-        <div>
+        <div className="text-left">
           <h3 className="text-lg font-semibold text-text">Próximos eventos</h3>
           <p className="text-sm text-subtext">Agenda destacada para los próximos días.</p>
         </div>
@@ -565,7 +570,7 @@ function UpcomingEvents() {
         {events.map((event) => (
           <li
             key={event.id}
-            className="flex items-center justify-between rounded-2xl border border-muted/50 bg-white/50 px-4 py-3 text-sm text-subtext backdrop-blur"
+            className="flex flex-col gap-3 rounded-2xl border border-muted/50 bg-white/50 px-4 py-3 text-sm text-subtext backdrop-blur sm:flex-row sm:items-center sm:justify-between"
           >
             <div>
               <div className="font-semibold text-text">{event.title}</div>
@@ -645,7 +650,7 @@ function ProgressHighlights({ resumen, loading }) {
                 key={id}
                 className="rounded-2xl border border-muted/40 bg-white/60 p-4 backdrop-blur transition hover:border-brand/40"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-sm font-medium text-subtext">{label}</div>
                     <div className="mt-1 text-2xl font-semibold text-text">
@@ -653,7 +658,7 @@ function ProgressHighlights({ resumen, loading }) {
                     </div>
                     <p className="text-xs text-subtext">{helper}</p>
                   </div>
-                  <span className={`rounded-full bg-brand/5 p-2 ${tone}`}>
+                  <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand/5 ${tone}`}>
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
                 </div>

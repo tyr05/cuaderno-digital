@@ -201,7 +201,7 @@ export default function Shell({
         <main className="flex min-h-screen flex-1 flex-col">
           <div className="border-b border-muted bg-surface/90 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
             <div className="flex flex-col gap-4 px-5 py-4 sm:px-8 sm:py-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-4">
+              <div className="flex min-w-0 items-start gap-4">
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(true)}
@@ -211,7 +211,7 @@ export default function Shell({
                   <Menu className="h-5 w-5" aria-hidden="true" />
                 </button>
 
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wide text-subtext">
                     Inicio · {currentTab?.label || "Panel"}
                   </p>
@@ -222,7 +222,7 @@ export default function Shell({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                 {headerActions}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
                   <label className="flex w-full items-center gap-3 rounded-full bg-white px-4 py-2 shadow-soft ring-1 ring-transparent transition focus-within:ring-2 focus-within:ring-brand-200 sm:max-w-sm lg:min-w-[22rem]">
@@ -234,7 +234,7 @@ export default function Shell({
                       className="w-full border-0 bg-transparent text-sm text-text placeholder:text-subtext focus:outline-none"
                     />
                   </label>
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     {resolvedQuickActions.map((action) => {
                       const { icon } = action;
 
