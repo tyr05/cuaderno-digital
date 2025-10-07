@@ -12,9 +12,12 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
-const anios = [1, 2, 3, 4, 5];
+const anios = [2, 3, 4, 5];
 const divisiones = ["1", "2"];
-const turnos = ["TM", "TT"];
+const turnos = [
+  { codigo: "TM", etiqueta: "Turno Mañana" },
+  { codigo: "TT", etiqueta: "Turno Tarde" },
+];
 
 const summary = {
   created: 0,
@@ -32,14 +35,14 @@ async function run() {
     for (const anio of anios) {
       for (const division of divisiones) {
         for (const turno of turnos) {
-          const nombre = `${anio}° ${division} ${turno}`;
-          const filter = { anio, division, turno };
+          const nombre = `${anio}° ${division} ${turno.etiqueta}`;
+          const filter = { anio, division, turno: turno.codigo };
           const update = {
             $set: {
               nombre,
               anio,
               division,
-              turno
+              turno: turno.codigo
             }
           };
 
