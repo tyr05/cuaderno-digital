@@ -2,7 +2,14 @@ import multer from "multer";
 import fs from "fs";
 
 export const UPLOAD_DIR = "uploads";
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
+
+try {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+} catch (error) {
+  if (error.code !== "EEXIST") {
+    throw error;
+  }
+}
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),

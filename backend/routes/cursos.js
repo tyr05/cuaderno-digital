@@ -1,6 +1,7 @@
 import { Router } from "express";
 import fs from "fs/promises";
-import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import bcrypt from "bcrypt";
 import xlsx from "xlsx";
 import Curso from "../models/Curso.js";
 import User from "../models/User.js";
@@ -84,7 +85,7 @@ function buildEmail(row) {
     "Mail",
     "mail",
   ]);
-  return raw.toLowerCase();
+  return raw ? raw.toLowerCase() : "";
 }
 
 function buildPassword(row, email) {
@@ -114,7 +115,13 @@ function buildPassword(row, email) {
     return email.split("@")[0];
   }
 
-  return `temporal-${Math.random().toString(36).slice(-8)}`;
+  const random = crypto
+    .randomBytes(8)
+    .toString("base64")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 10);
+
+  return `temporal-${random || crypto.randomBytes(4).toString("hex")}`;
 }
 
 function isRowEmpty(row) {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
@@ -8,10 +8,16 @@ const router = Router();
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
-    const { nombre, email, password, rol } = req.body;
+    const nombre = typeof req.body.nombre === "string" ? req.body.nombre.trim() : "";
+    const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const password = typeof req.body.password === "string" ? req.body.password : "";
 
     if (!nombre || !email || !password) {
       return res.status(400).json({ error: "Faltan campos obligatorios" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
     }
 
     const existe = await User.findOne({ email });
@@ -22,7 +28,7 @@ router.post("/register", async (req, res) => {
       nombre,
       email,
       passwordHash,
-      rol: rol || "padre"
+      rol: "padre"
     });
 
     res.status(201).json({
@@ -30,6 +36,7 @@ router.post("/register", async (req, res) => {
       user: { id: user._id, nombre: user.nombre, email: user.email, rol: user.rol }
     });
   } catch (e) {
+    console.error("Error en el registro de usuario", e);
     res.status(500).json({ error: "Error en el registro" });
   }
 });
@@ -37,8 +44,13 @@ router.post("/register", async (req, res) => {
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const password = typeof req.body.password === "string" ? req.body.password : "";
     const { JWT_SECRET } = process.env;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email y contraseña son obligatorios" });
+    }
 
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ error: "Credenciales inválidas" });
@@ -57,6 +69,7 @@ router.post("/login", async (req, res) => {
       user: { id: user._id, nombre: user.nombre, email: user.email, rol: user.rol }
     });
   } catch (e) {
+    console.error("Error durante el login", e);
     res.status(500).json({ error: "Error en el login" });
   }
 });
