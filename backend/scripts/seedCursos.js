@@ -12,7 +12,7 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
-const anios = [2, 3, 4, 5];
+const anios = [1, 2, 3, 4, 5];
 const divisiones = ["1", "2"];
 const turnos = [
   { codigo: "TM", etiqueta: "Turno Mañana" },
