@@ -1,7 +1,7 @@
 import multer from "multer";
 import fs from "fs";
 
-const UPLOAD_DIR = "uploads";
+export const UPLOAD_DIR = "uploads";
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 
 const storage = multer.diskStorage({
