@@ -18,6 +18,7 @@ import Skeleton from "../components/ui/Skeleton";
 export default function Dashboard() {
   const { user } = useAuth();
   const toast = useToast();
+  const toastShow = toast?.show;
 
   const [cursos, setCursos] = useState([]);
   const [cursoSel, setCursoSel] = useState("");
@@ -57,12 +58,12 @@ export default function Dashboard() {
         console.error("No se pudieron cargar los cursos", error);
         setCursos([]);
         setCursoSel("");
-        toast?.show?.(error?.error || "No se pudieron cargar los cursos", "error");
+        toastShow?.(error?.error || "No se pudieron cargar los cursos", "error");
       } finally {
         setLoading(false);
       }
     })();
-  }, [toast]);
+  }, [toastShow]);
 
   useEffect(() => {
     setAlumnoSel("todos");
@@ -108,11 +109,11 @@ export default function Dashboard() {
 
   async function crearAnuncio() {
     if (!cursoSel || !titulo.trim() || !contenido.trim()) {
-      toast.show("Completá título y contenido", "error");
+      toastShow?.("Completá título y contenido", "error");
       return;
     }
     if (alcance === "alumno" && !alumnoDestino) {
-      toast.show("Elegí un estudiante destinatario", "error");
+      toastShow?.("Elegí un estudiante destinatario", "error");
       return;
     }
     setSaving(true);
@@ -140,7 +141,7 @@ export default function Dashboard() {
       list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setAnuncios(list);
 
-      toast.show("Anuncio publicado");
+      toastShow?.("Anuncio publicado");
     } finally {
       setSaving(false);
     }

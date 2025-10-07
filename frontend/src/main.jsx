@@ -8,9 +8,12 @@ import { setApiToast } from "./api";
 
 function ApiToastBridge() {
   const toast = useToast();
+  const toastShow = toast?.show;
   useEffect(() => {
-    setApiToast(toast.show);
-  }, [toast]);
+    if (toastShow) {
+      setApiToast(toastShow);
+    }
+  }, [toastShow]);
   return null;
 }
 
