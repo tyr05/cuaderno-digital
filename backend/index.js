@@ -60,6 +60,28 @@ import asistRouter from "./routes/asistencias.js";
 app.use("/api/asistencias", asistRouter);
 app.use("/api/users", usersRouter);
 
+
+// --- Ruta de salud (para monitoreo y pruebas) ---
+app.get("/health", (req, res) => {
+  // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  const states = ["disconnected", "connected", "connecting", "disconnecting"];
+  const dbState =
+    (typeof mongoose !== "undefined" &&
+     mongoose.connection &&
+     states[mongoose.connection.readyState]) || "unknown";
+
+  res.json({
+    ok: true,
+    service: "backend",
+    db: dbState,
+    time: new Date().toISOString(),
+    uptime_seconds: process.uptime()
+  });
+});
+
+// (Opcional) si querés que también exista /api/health
+app.get("/api/health", (req, res) => res.redirect(307, "/health"));
+
 // 7) Levantar servidor al final
 app.listen(PORT || 5000, () => {
   console.log(`✅ Servidor en http://localhost:${PORT || 5000}`);
