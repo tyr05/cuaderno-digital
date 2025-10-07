@@ -68,7 +68,6 @@ export default function Asistencia() {
         setCursosLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [esDocenteOAdmin]);
 
   // Cargar alumnos del curso seleccionado
@@ -92,7 +91,7 @@ export default function Asistencia() {
           const data = await apiGet(`/api/asistencias?fecha=${fecha}&alumno=${user.id}`);
           setRegistros(data);
         }
-      } catch (e) {
+      } catch {
         // manejado por api.js con toast de error
       }
     })();
@@ -221,7 +220,7 @@ export default function Asistencia() {
         month: "long",
         year: "numeric",
       }).format(new Date(fecha));
-    } catch (error) {
+    } catch {
       return fecha;
     }
   }, [fecha]);
