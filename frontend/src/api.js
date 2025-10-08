@@ -56,6 +56,38 @@ function resolveBaseUrl() {
 
 const BASE = resolveBaseUrl();
 
+function buildUrl(path) {
+  if (path instanceof URL) {
+    return path.toString();
+  }
+
+  if (typeof path !== "string") {
+    throw new TypeError("El path de la API debe ser una cadena o URL válida");
+  }
+
+  const trimmed = path.trim();
+
+  if (!trimmed) {
+    throw new Error("El path de la API no puede estar vacío");
+  }
+
+  const isAbsolute = /^[a-z][a-z\d+.-]*:/i.test(trimmed);
+
+  if (isAbsolute) {
+    return trimmed;
+  }
+
+  const normalizedPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+
+  try {
+    return new URL(normalizedPath, BASE).toString();
+  } catch (error) {
+    console.warn("No se pudo crear la URL de la API", error);
+    const base = BASE.endsWith("/") ? BASE.slice(0, -1) : BASE;
+    return `${base}${normalizedPath}`;
+  }
+}
+
 function authHeaders(extra = {}) {
   const token = localStorage.getItem("token");
   return token
@@ -83,7 +115,7 @@ async function handle(res) {
 }
 
 export async function apiGet(path) {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildUrl(path), {
     method: "GET",
     headers: authHeaders({ "Content-Type": "application/json" }),
   });
@@ -91,7 +123,7 @@ export async function apiGet(path) {
 }
 
 export async function apiPost(path, body) {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildUrl(path), {
     method: "POST",
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body || {}),
@@ -100,7 +132,7 @@ export async function apiPost(path, body) {
 }
 
 export async function apiPut(path, body) {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildUrl(path), {
     method: "PUT",
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body || {}),
@@ -109,7 +141,7 @@ export async function apiPut(path, body) {
 }
 
 export async function apiDelete(path) {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildUrl(path), {
     method: "DELETE",
     headers: authHeaders({ "Content-Type": "application/json" }),
   });
@@ -117,7 +149,7 @@ export async function apiDelete(path) {
 }
 
 export async function apiPostForm(path, formData) {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(buildUrl(path), {
     method: "POST",
     headers: authHeaders(), // NO agregar Content-Type; lo arma el navegador (boundary)
     body: formData,
