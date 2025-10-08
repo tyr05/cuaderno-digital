@@ -1,19 +1,50 @@
 import { Router } from "express";
 import fs from "fs/promises";
-import crypto from "crypto";
 import bcrypt from "bcrypt";
 import xlsx from "xlsx";
 import Curso from "../models/Curso.js";
 import User from "../models/User.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { uploadExcel } from "../middleware/upload.js";
+import { enforcePasswordPolicy, generateStrongPassword } from "../utils/password.js";
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function handleExcelUpload(req, res, next) {
+  uploadExcel.single("archivo")(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ error: "El archivo supera el tamaño máximo de 5MB" });
+    }
+    return res.status(400).json({ error: err.message || "No se pudo procesar el archivo" });
+  });
+}
 
 const router = Router();
 
 // Crear un curso (solo admin)
 router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const curso = await Curso.create(req.body);
+    const anio = Number(req.body?.anio);
+    const payload = {
+      nombre: String(req.body?.nombre || "").trim(),
+      anio: Number.isNaN(anio) ? undefined : anio,
+      division: String(req.body?.division || "").trim() || undefined,
+      turno: req.body?.turno,
+    };
+
+    if (Array.isArray(req.body?.docentes)) {
+      payload.docentes = req.body.docentes;
+    }
+    if (Array.isArray(req.body?.alumnos)) {
+      payload.alumnos = req.body.alumnos;
+    }
+
+    if (!payload.nombre || typeof payload.anio !== "number") {
+      return res.status(400).json({ error: "Nombre y año son obligatorios" });
+    }
+
+    const curso = await Curso.create(payload);
     res.status(201).json(curso);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -99,7 +130,13 @@ function buildPassword(row, email) {
     "Clave",
     "clave",
   ]);
-  if (explicit) return explicit;
+  if (explicit) {
+    const normalized = enforcePasswordPolicy(explicit);
+    return {
+      password: normalized,
+      origin: normalized === explicit.trim() ? "planilla" : "fortalecida",
+    };
+  }
 
   const documento = pickValue(row, [
     "DNI",
@@ -109,19 +146,24 @@ function buildPassword(row, email) {
     "Legajo",
     "legajo",
   ]);
-  if (documento) return documento;
-
-  if (email && email.includes("@")) {
-    return email.split("@")[0];
+  if (documento) {
+    return {
+      password: enforcePasswordPolicy(documento),
+      origin: "documento",
+    };
   }
 
-  const random = crypto
-    .randomBytes(8)
-    .toString("base64")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .slice(0, 10);
+  if (email && email.includes("@")) {
+    return {
+      password: enforcePasswordPolicy(email.split("@")[0]),
+      origin: "email",
+    };
+  }
 
-  return `temporal-${random || crypto.randomBytes(4).toString("hex")}`;
+  return {
+    password: generateStrongPassword(),
+    origin: "aleatoria",
+  };
 }
 
 function isRowEmpty(row) {
@@ -131,12 +173,27 @@ function isRowEmpty(row) {
 // Agregar alumno a un curso (admin o docente)
 router.post("/:id/agregar-alumno", requireAuth, requireRole("admin", "docente"), async (req, res) => {
   const { alumnoId } = req.body;
-  const curso = await Curso.findByIdAndUpdate(
+
+  const curso = await Curso.findById(req.params.id);
+  if (!curso) {
+    return res.status(404).json({ error: "Curso no encontrado" });
+  }
+
+  const alumno = await User.findById(alumnoId);
+  if (!alumno) {
+    return res.status(404).json({ error: "Alumno no encontrado" });
+  }
+  if (alumno.rol !== "estudiante") {
+    return res.status(400).json({ error: "El usuario debe tener rol estudiante" });
+  }
+
+  const updated = await Curso.findByIdAndUpdate(
     req.params.id,
     { $addToSet: { alumnos: alumnoId } },
     { new: true }
   ).populate("docentes alumnos", "nombre email rol");
-  res.json(curso);
+
+  res.json(updated);
 });
 
 // Importar alumnos desde un Excel/CSV
@@ -144,7 +201,7 @@ router.post(
   "/:id/importar-alumnos",
   requireAuth,
   requireRole("admin", "docente"),
-  uploadExcel.single("archivo"),
+  handleExcelUpload,
   async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "Subí un archivo Excel o CSV." });
@@ -183,7 +240,7 @@ router.post(
 
         const nombre = buildNombre(row);
         const email = buildEmail(row);
-        const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        const emailValido = emailRegex.test(email);
 
         if (!nombre || !emailValido) {
           summary.omitidos.push({ fila: index + 2, motivo: "Falta nombre o email válido" });
@@ -191,11 +248,9 @@ router.post(
         }
 
         let user = await User.findOne({ email });
-        let passwordPlano = null;
-        let updated = false;
 
         if (!user) {
-          passwordPlano = buildPassword(row, email);
+          const { password: passwordPlano, origin: passwordOrigen } = buildPassword(row, email);
           const passwordHash = await bcrypt.hash(passwordPlano, 10);
           user = await User.create({
             nombre,
@@ -204,7 +259,11 @@ router.post(
             rol: "estudiante",
           });
           summary.creados += 1;
-          summary.credencialesNuevas.push({ email: user.email, passwordTemporal: passwordPlano });
+          summary.credencialesNuevas.push({
+            email: user.email,
+            passwordTemporal: passwordPlano,
+            origen: passwordOrigen,
+          });
         } else {
           const updates = {};
           if (user.rol !== "estudiante") {
@@ -217,7 +276,6 @@ router.post(
           if (Object.keys(updates).length > 0) {
             user = await User.findByIdAndUpdate(user._id, { $set: updates }, { new: true });
             summary.actualizados += 1;
-            updated = true;
           }
 
         }
@@ -260,12 +318,26 @@ router.post(
 // Agregar docente a un curso (admin)
 router.post("/:id/agregar-docente", requireAuth, requireRole("admin"), async (req, res) => {
   const { docenteId } = req.body;
-  const curso = await Curso.findByIdAndUpdate(
+  const curso = await Curso.findById(req.params.id);
+  if (!curso) {
+    return res.status(404).json({ error: "Curso no encontrado" });
+  }
+
+  const docente = await User.findById(docenteId);
+  if (!docente) {
+    return res.status(404).json({ error: "Docente no encontrado" });
+  }
+  if (!["docente", "admin"].includes(docente.rol)) {
+    return res.status(400).json({ error: "El usuario no tiene permisos de docente" });
+  }
+
+  const updated = await Curso.findByIdAndUpdate(
     req.params.id,
     { $addToSet: { docentes: docenteId } },
     { new: true }
   ).populate("docentes alumnos", "nombre email rol");
-  res.json(curso);
+
+  res.json(updated);
 });
 
 export default router;

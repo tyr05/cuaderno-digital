@@ -2,13 +2,17 @@ import { Router } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { MIN_PASSWORD_LENGTH, isPasswordStrong } from "../utils/password.js";
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const router = Router();
 
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
-    const nombre = typeof req.body.nombre === "string" ? req.body.nombre.trim() : "";
+    const nombreRaw = typeof req.body.nombre === "string" ? req.body.nombre.trim() : "";
+    const nombre = nombreRaw.replace(/\s+/g, " ").slice(0, 120);
     const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = typeof req.body.password === "string" ? req.body.password : "";
 
@@ -16,8 +20,14 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Faltan campos obligatorios" });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Email inválido" });
+    }
+
+    if (!isPasswordStrong(password)) {
+      return res.status(400).json({
+        error: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres, una letra y un número`,
+      });
     }
 
     const existe = await User.findOne({ email });
@@ -50,6 +60,10 @@ router.post("/login", async (req, res) => {
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email y contraseña son obligatorios" });
+    }
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Email inválido" });
     }
 
     const user = await User.findOne({ email });

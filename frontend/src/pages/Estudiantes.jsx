@@ -371,6 +371,21 @@ function ResumenImport({ resumen }) {
             {resumen.credencialesNuevas.map((item) => (
               <li key={item.email} className="rounded-lg bg-brand-100/60 px-2 py-1">
                 <span className="font-medium text-text">{item.email}</span>: {item.passwordTemporal}
+                {item.origen ? (
+                  <span className="ml-1 text-[11px] uppercase tracking-wide text-brand-600">
+                    ({
+                      item.origen === "planilla"
+                        ? "planilla"
+                        : item.origen === "fortalecida"
+                        ? "fortalecida"
+                        : item.origen === "documento"
+                        ? "desde documento"
+                        : item.origen === "email"
+                        ? "basada en email"
+                        : "generada"
+                    })
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>

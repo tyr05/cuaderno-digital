@@ -6,6 +6,16 @@ import { upload } from "../middleware/upload.js";
 
 const router = Router();
 
+function handleCertificateUpload(req, res, next) {
+  upload.single("certificado")(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ error: "El archivo supera el tamaño máximo permitido" });
+    }
+    return res.status(400).json({ error: err.message || "No se pudo procesar el archivo" });
+  });
+}
+
 function todayStr(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -223,7 +233,7 @@ router.get("/", requireAuth, async (req, res) => {
  * (padre o admin) Sube certificado y deja pendiente de aprobación.
  * form-data: fields { motivo }, file "certificado"
  */
-router.post("/:id/justificar", requireAuth, requireRole("padre","admin"), upload.single("certificado"), async (req,res) => {
+router.post("/:id/justificar", requireAuth, requireRole("padre","admin"), handleCertificateUpload, async (req,res) => {
   const { id } = req.params;
   const a = await Asistencia.findById(id);
   if (!a) return res.status(404).json({ error: "Asistencia no encontrada" });
