@@ -1,4 +1,3 @@
-// frontend/src/api.js
 let toastFn = null; // se setea desde App con setApiToast()
 
 export function setApiToast(fn) {
@@ -106,7 +105,6 @@ async function handle(res) {
     if (toastFn) toastFn(err.error || "Error", "error");
     throw err;
   }
-  // algunos endpoints devuelven 204
   try {
     return await res.json();
   } catch {
@@ -151,8 +149,11 @@ export async function apiDelete(path) {
 export async function apiPostForm(path, formData) {
   const res = await fetch(buildUrl(path), {
     method: "POST",
-    headers: authHeaders(), // NO agregar Content-Type; lo arma el navegador (boundary)
+    headers: authHeaders(),
     body: formData,
   });
   return handle(res);
 }
+
+// 👇 exportamos BASE para que otros componentes lo usen
+export { BASE };

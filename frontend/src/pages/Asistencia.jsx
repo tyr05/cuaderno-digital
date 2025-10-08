@@ -1,7 +1,6 @@
-// frontend/src/pages/Asistencia.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthProvider";
-import { apiGet, apiPost, apiPostForm } from "../api";
+import { apiGet, apiPost, apiPostForm, BASE } from "../api"; // 👈 ahora importamos BASE
 import Shell from "../components/Shell";
 import Button from "../components/ui/Button";
 import { Card, CardBody } from "../components/ui/Card";
@@ -14,13 +13,16 @@ import { Table, THead, TRow, TH, TD } from "../components/ui/Table";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 
+// ❌ sacamos esto:
+// const BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+
 function hoyStr(d = new Date()) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function Asistencia() {
   const { user } = useAuth();
