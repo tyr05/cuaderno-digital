@@ -55,6 +55,8 @@ export default function Asistencia() {
   ];
   if (esDocenteOAdmin) {
     tabs.push({ to: "/estudiantes", label: "Estudiantes" });
+  } else if (esPadre) {
+    tabs.push({ to: "/familia", label: "Mis hijos" });
   }
 
   // Cargar cursos para docente/admin
