@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthProvider";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Button from "../components/ui/Button";
 import { ShieldCheck, Mail, Lock } from "lucide-react";
 import { Card, CardBody } from "../components/ui/Card";
@@ -66,6 +66,17 @@ export default function Login() {
 
             <Button className="w-full mt-2">Entrar</Button>
           </form>
+          <div className="mt-6 space-y-2">
+            <p className="text-sm text-subtext text-center">
+              ¿Sos madre, padre o tutor y todavía no tenés cuenta?
+            </p>
+            <Link
+              to="/registro"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/60 bg-white/80 px-4 py-2 font-semibold text-text shadow-soft transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100 focus:ring-offset-2 focus:ring-offset-transparent"
+            >
+              Registrarme como familia
+            </Link>
+          </div>
         </CardBody>
       </Card>
     </div>
