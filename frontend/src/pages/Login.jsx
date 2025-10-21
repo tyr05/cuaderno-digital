@@ -66,10 +66,7 @@ export default function Login() {
 
             <Button className="w-full mt-2">Entrar</Button>
           </form>
-          <div className="mt-4 text-sm text-subtext text-center">
-            ¿Sos madre, padre o tutor y todavía no tenés cuenta?{" "}
-            <Link to="/registro" className="text-brand-500 hover:text-brand-600 font-semibold">
-              Registrate
+
             </Link>
           </div>
         </CardBody>
