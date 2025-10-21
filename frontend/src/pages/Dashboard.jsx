@@ -44,6 +44,8 @@ export default function Dashboard() {
   ];
   if (esCreador) {
     tabs.push({ to: "/estudiantes", label: "Estudiantes" });
+  } else if (user?.rol === "padre") {
+    tabs.push({ to: "/familia", label: "Mis hijos" });
   }
 
   // Cargar cursos
