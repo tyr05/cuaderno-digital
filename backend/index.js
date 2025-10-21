@@ -60,6 +60,8 @@ import asistRouter from "./routes/asistencias.js";
 app.use("/api/asistencias", asistRouter);
 app.use("/api/users", usersRouter);
 
+import linksRouter from "./routes/links.js";
+app.use("/api/links", linksRouter);
 
 // --- Ruta de salud (para monitoreo y pruebas) ---
 app.get("/health", (req, res) => {
