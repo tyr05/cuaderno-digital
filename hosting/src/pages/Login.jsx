@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthProvider";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Button from "../components/ui/Button";
 import { ShieldCheck, Mail, Lock } from "lucide-react";
 import { Card, CardBody } from "../components/ui/Card";
@@ -27,6 +27,15 @@ export default function Login() {
     <div className="min-h-screen grid place-items-center bg-gradient-to-b from-surface2 to-surface">
       <Card className="w-full max-w-md">
         <CardBody>
+          {/* Imagen encima del login */}
+          <div className="flex justify-center mb-4">
+            <img
+              src="/logo.jpg"  // la imagen que pusiste en /public/logo.jpg
+              alt="Logo Cuaderno Digital"
+              className="h-20 w-auto object-contain"
+            />
+          </div>
+
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-xl bg-brand-600 grid place-items-center shadow-soft">
               <ShieldCheck className="h-5 w-5 text-white" />
@@ -47,7 +56,9 @@ export default function Login() {
                 <input
                   type="email"
                   className="w-full pl-9 pr-3 py-2"
-                  value={email} onChange={e=>setEmail(e.target.value)} required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
                 />
               </div>
             </label>
@@ -59,16 +70,15 @@ export default function Login() {
                 <input
                   type="password"
                   className="w-full pl-9 pr-3 py-2"
-                  value={password} onChange={e=>setPassword(e.target.value)} required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
                 />
               </div>
             </label>
 
             <Button className="w-full mt-2">Entrar</Button>
           </form>
-
-            </Link>
-          </div>
         </CardBody>
       </Card>
     </div>
