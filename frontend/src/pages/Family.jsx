@@ -8,16 +8,24 @@ import Input from "../components/ui/Input";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 import { useToast } from "../components/ui/Toast";
-import { Users, Link2, ShieldAlert } from "lucide-react";
+import { Users, Link2, ShieldAlert, Bell } from "lucide-react";
 
 export default function Family() {
   const { user } = useAuth();
   const toast = useToast();
   const toastShow = toast?.show;
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // hijos
   const [loadingList, setLoadingList] = useState(true);
   const [hijos, setHijos] = useState([]);
+
+  // anuncios 
+  const [loadingAnuncios, setLoadingAnuncios] = useState(true);
+  const [anuncios, setAnuncios] = useState([]);
+
   const esPadre = user?.rol === "padre";
 
   const tabs = [
@@ -26,6 +34,7 @@ export default function Family() {
     { to: "/familia", label: "Mis hijos" },
   ];
 
+  // Cargar hijos
   useEffect(() => {
     if (!esPadre) return;
     (async () => {
@@ -37,6 +46,22 @@ export default function Family() {
         setHijos([]);
       } finally {
         setLoadingList(false);
+      }
+    })();
+  }, [esPadre]);
+
+  // Cargar anuncios visibles para familia
+  useEffect(() => {
+    if (!esPadre) return;
+    (async () => {
+      setLoadingAnuncios(true);
+      try {
+        const data = await apiGet("/api/anuncios"); // tu endpoint ya filtra por rol en backend
+        setAnuncios(Array.isArray(data) ? data : []);
+      } catch {
+        setAnuncios([]);
+      } finally {
+        setLoadingAnuncios(false);
       }
     })();
   }, [esPadre]);
@@ -85,6 +110,46 @@ export default function Family() {
       description="Gestioná los estudiantes vinculados a tu cuenta"
       addNewLabel="Vincular estudiante"
     >
+      {/* --- Anuncios arriba de todo --- */}
+      <Card>
+        <CardHeader
+          title="Anuncios de la escuela"
+          subtitle="Novedades importantes para las familias"
+          actions={<Bell className="h-5 w-5 text-brand-600" />}
+        />
+        <CardBody>
+          {loadingAnuncios ? (
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-3/4" />
+            </div>
+          ) : anuncios.length === 0 ? (
+            <EmptyState
+              title="Sin anuncios"
+              desc="Todavía no hay novedades para tu familia."
+            />
+          ) : (
+            <ul className="space-y-3">
+              {anuncios.map((a) => (
+                <li
+                  key={a._id}
+                  className="rounded-xl border border-muted bg-card/60 p-3 shadow-sm"
+                >
+                  <div className="font-semibold">{a.titulo}</div>
+                  <div className="text-sm text-subtext">{a.contenido}</div>
+                  {a.createdAt && (
+                    <div className="text-xs text-muted mt-1">
+                      {new Date(a.createdAt).toLocaleString("es-AR")}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* --- Resto del contenido de familia --- */}
       <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <Card>
           <CardHeader

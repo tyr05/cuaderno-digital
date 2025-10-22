@@ -34,6 +34,7 @@ router.post("/", requireAuth, requireRole("docente", "admin"), async (req, res) 
       titulo,
       contenido,
       curso,
+      // AUDIENCIA OFICIAL: "familia" 
       visiblePara: visiblePara || "todos",
       autor: req.user.uid,
       alumno: alumnoId || undefined,
@@ -47,7 +48,7 @@ router.post("/", requireAuth, requireRole("docente", "admin"), async (req, res) 
 
 /**
  * Listar anuncios por curso (cualquier usuario autenticado).
- * GET /api/anuncios?curso=<cursoId>
+ * GET /api/anuncios?curso=<cursoId>&alumno=<alumnoId>
  */
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -55,19 +56,32 @@ router.get("/", requireAuth, async (req, res) => {
     const filtro = {};
     if (curso) filtro.curso = curso;
 
+    const rol = (req.user?.rol || "").toLowerCase();
     const alumnoId = typeof alumno === "string" ? alumno.trim() : "";
 
+    // 1) Si piden anuncios dirigidos a un alumno puntual
     if (alumnoId) {
       filtro.$or = [{ alumno: null }, { alumno: alumnoId }];
-    } else if (req.user?.rol === "estudiante") {
+    }
+    // 2) Según rol del usuario (solo si no se pidió alumno puntual)
+    else if (rol === "estudiante") {
       filtro.$or = [
         { alumno: null, visiblePara: { $in: ["todos", "estudiantes"] } },
         { alumno: req.user.uid },
       ];
-    } else if (req.user?.rol === "padre") {
+    } else if (rol === "familia" || rol === "tutor") {
+      // Audiencia inclusiva oficial:
       filtro.$or = [
-        { alumno: null, visiblePara: { $in: ["todos", "padres"] } },
+        { alumno: null, visiblePara: { $in: ["todos", "familia"] } },
       ];
+      // (Opcional) Compatibilidad con anuncios viejos creados como "padres":
+      // filtro.$or = [
+      //   { alumno: null, visiblePara: { $in: ["todos", "familia", "padres"] } },
+      // ];
+    } else {
+      // Docente/Admin u otros roles: si viene curso, ven los del curso; si no, todos
+      // (Podés ajustar esto a tu política)
+      // Sin $or => ven todos los anuncios (o limitá por curso si querés)
     }
 
     const anuncios = await Anuncio.find(filtro)

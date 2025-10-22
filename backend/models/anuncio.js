@@ -9,7 +9,7 @@ const anuncioSchema = new mongoose.Schema(
     alumno: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     visiblePara: {
       type: String,
-      enum: ["todos", "padres", "estudiantes", "docentes"],
+      enum: ["todos", "familia", "estudiantes", "docentes"],
       default: "todos",
     },
     // más adelante podemos sumar: fechaHasta, archivos, etiquetas, etc.
