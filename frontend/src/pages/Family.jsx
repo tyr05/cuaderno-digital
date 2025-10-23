@@ -28,8 +28,9 @@ export default function Family() {
   const [anuncios, setAnuncios] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // ✅ Rol familia/tutor (inclusivo)
-  const esFamilia = user?.rol === "familia" || user?.rol === "tutor";
+  // Rol familia/tutor 
+const rol = (user?.rol || "").toLowerCase();
+const esFamilia = ["familia", "tutor", "padre"].includes(rol);
 
   const tabs = [
     { to: "/", label: "Inicio" },

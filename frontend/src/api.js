@@ -155,5 +155,5 @@ export async function apiPostForm(path, formData) {
   return handle(res);
 }
 
-// 👇 exportamos BASE para que otros componentes lo usen
+//  exportamos BASE para que otros componentes lo usen
 export { BASE };

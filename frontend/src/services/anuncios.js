@@ -10,4 +10,4 @@ export const getUnreadCount = () =>
 
 // Marca un anuncio como leído
 export const ackAnuncio = (id) =>
-  apiPost(`/api/anuncios/${id}/ack`, {});
+  apiPost(`/api/anuncios/ack/${id}`, {}); 
