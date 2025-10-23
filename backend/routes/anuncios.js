@@ -9,7 +9,7 @@ const router = Router();
 
 // Helpers de audiencia
 const FAMILY_ROLES = ["familia", "tutor", "padre"];
-const FAMILY_AUDIENCES = ["todos", "familia", "padres"]; // "padres" por compat durante la migración
+const FAMILY_AUDIENCES = ["todos", "familia", "padres"]; // "padres" por compat durante migración
 
 /**
  * Crear anuncio (docente o admin)
@@ -38,8 +38,7 @@ router.post("/", requireAuth, requireRole("docente", "admin"), async (req, res) 
       titulo,
       contenido,
       curso,
-      // audiencia por defecto
-      visiblePara: visiblePara || "todos",
+      visiblePara: (visiblePara || "todos").toLowerCase(),
       autor: req.user.uid,
       alumno: alumnoId || undefined,
     });
@@ -156,25 +155,21 @@ router.get("/", requireAuth, async (req, res) => {
     if (curso) filtro.curso = curso;
 
     const rol = (req.user?.rol || "").toLowerCase();
-    const alumnoId = typeof alumno === "string" ? alumno.trim() : "";
+    const alumnoIds = typeof alumno === "string" && alumno.trim()
+      ? alumno.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
 
-    // 1) Si piden anuncios dirigidos a un alumno puntual
-    if (alumnoId) {
-      filtro.$or = [{ alumno: null }, { alumno: alumnoId }];
-    }
-    // 2) Según rol del usuario (si no se pidió alumno puntual)
-    else if (rol === "estudiante") {
+    if (alumnoIds.length) {
+      filtro.$or = [{ alumno: null }, { alumno: { $in: alumnoIds } }];
+    } else if (rol === "estudiante") {
       filtro.$or = [
         { alumno: null, visiblePara: { $in: ["todos", "estudiantes"] } },
         { alumno: req.user.uid },
       ];
     } else if (FAMILY_ROLES.includes(rol)) {
-      filtro.$or = [{ alumno: null, visiblePara: { $in: ["todos", "familia"] } }];
-      // si todavía tenés anuncios viejos con "padres", podés dejar:
-      // filtro.$or = [{ alumno: null, visiblePara: { $in: ["todos", "familia", "padres"] } }];
+      filtro.$or = [{ alumno: null, visiblePara: { $in: FAMILY_AUDIENCES } }];
     } else {
-      // Docente/Admin u otros roles: pueden ver todos (o limitar por curso si querés)
-      // Dejamos filtro tal cual.
+      // docente/admin u otros roles → ven todo
     }
 
     const anuncios = await Anuncio.find(filtro)
