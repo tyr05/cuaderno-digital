@@ -382,7 +382,7 @@ export default function Dashboard() {
 
             <Select label="Visible para" value={visiblePara} onChange={(e) => setVisiblePara(e.target.value)}>
               <option value="todos">Todos</option>
-              <option value="padres">Familias</option>
+              <option value="familia">Familias</option>
               <option value="estudiantes">Estudiantes</option>
               <option value="docentes">Docentes</option>
             </Select>

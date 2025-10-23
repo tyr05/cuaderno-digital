@@ -9,6 +9,7 @@ import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 import { useToast } from "../components/ui/Toast";
 import { Users, Link2, ShieldAlert, Bell } from "lucide-react";
+import { notifyOnLogin, getUnreadCount, ackAnuncio } from "../services/anuncios";
 
 export default function Family() {
   const { user } = useAuth();
@@ -22,11 +23,13 @@ export default function Family() {
   const [loadingList, setLoadingList] = useState(true);
   const [hijos, setHijos] = useState([]);
 
-  // anuncios 
+  // anuncios
   const [loadingAnuncios, setLoadingAnuncios] = useState(true);
   const [anuncios, setAnuncios] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const esPadre = user?.rol === "padre";
+  // ✅ Rol familia/tutor (inclusivo)
+  const esFamilia = user?.rol === "familia" || user?.rol === "tutor";
 
   const tabs = [
     { to: "/", label: "Inicio" },
@@ -36,7 +39,7 @@ export default function Family() {
 
   // Cargar hijos
   useEffect(() => {
-    if (!esPadre) return;
+    if (!esFamilia) return;
     (async () => {
       setLoadingList(true);
       try {
@@ -48,15 +51,28 @@ export default function Family() {
         setLoadingList(false);
       }
     })();
-  }, [esPadre]);
+  }, [esFamilia]);
 
-  // Cargar anuncios visibles para familia
+  // 🔔 Inicializar notificaciones + cargar anuncios y contador
   useEffect(() => {
-    if (!esPadre) return;
+    if (!esFamilia) return;
     (async () => {
+      try {
+        // registra “notified” en backend
+        await notifyOnLogin();
+      } catch {}
+      try {
+        // contador badge
+        const res = await getUnreadCount();
+        const count = res?.unread ?? res?.count ?? 0;
+        setUnreadCount(count);
+      } catch {
+        setUnreadCount(0);
+      }
+      // cargar lista de anuncios visibles (backend ya filtra por rol)
       setLoadingAnuncios(true);
       try {
-        const data = await apiGet("/api/anuncios"); // tu endpoint ya filtra por rol en backend
+        const data = await apiGet("/api/anuncios");
         setAnuncios(Array.isArray(data) ? data : []);
       } catch {
         setAnuncios([]);
@@ -64,7 +80,20 @@ export default function Family() {
         setLoadingAnuncios(false);
       }
     })();
-  }, [esPadre]);
+  }, [esFamilia]);
+
+  // Marcar anuncio como leído
+  async function handleMarkRead(id) {
+    try {
+      await ackAnuncio(id);
+      setUnreadCount((prev) => Math.max(prev - 1, 0));
+      // opcional: atenuar tarjeta
+      setAnuncios((prev) => prev.map((a) => (a._id === id ? { ...a, _read: true } : a)));
+      toastShow?.("Anuncio marcado como leído");
+    } catch {
+      toastShow?.("No se pudo marcar como leído", "error");
+    }
+  }
 
   async function handleLink(e) {
     e.preventDefault();
@@ -83,7 +112,7 @@ export default function Family() {
     }
   }
 
-  if (!esPadre) {
+  if (!esFamilia) {
     return (
       <Shell
         tabs={tabs}
@@ -94,7 +123,7 @@ export default function Family() {
           <CardBody className="flex flex-col items-center gap-3 py-12 text-center text-subtext">
             <ShieldAlert className="h-12 w-12 text-brand-500" />
             <p className="max-w-md text-sm">
-              Esta sección está pensada para madres, padres o tutores. Iniciá sesión con una cuenta de
+              Esta sección está pensada para familias o tutores. Iniciá sesión con una cuenta de
               familia para vincular estudiantes.
             </p>
           </CardBody>
@@ -115,7 +144,16 @@ export default function Family() {
         <CardHeader
           title="Anuncios de la escuela"
           subtitle="Novedades importantes para las familias"
-          actions={<Bell className="h-5 w-5 text-brand-600" />}
+          actions={
+            <div className="relative">
+              <Bell className="h-5 w-5 text-brand-600" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+          }
         />
         <CardBody>
           {loadingAnuncios ? (
@@ -133,13 +171,22 @@ export default function Family() {
               {anuncios.map((a) => (
                 <li
                   key={a._id}
-                  className="rounded-xl border border-muted bg-card/60 p-3 shadow-sm"
+                  className={`rounded-xl border border-muted p-3 shadow-sm ${
+                    a._read ? "bg-gray-100" : "bg-card/60"
+                  }`}
                 >
                   <div className="font-semibold">{a.titulo}</div>
                   <div className="text-sm text-subtext">{a.contenido}</div>
                   {a.createdAt && (
                     <div className="text-xs text-muted mt-1">
                       {new Date(a.createdAt).toLocaleString("es-AR")}
+                    </div>
+                  )}
+                  {!a._read && (
+                    <div className="mt-2 flex justify-end">
+                      <Button size="sm" onClick={() => handleMarkRead(a._id)}>
+                        Marcar como leído
+                      </Button>
                     </div>
                   )}
                 </li>
