@@ -2,6 +2,7 @@
 import { Router } from "express";
 import mongoose from "mongoose";
 import User from "../models/User.js";
+import AlumnoPadron from "../models/AlumnoPadron.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = Router();
@@ -51,6 +52,54 @@ router.get("/me/hijos", requireAuth, requireRole("familia"), async (req, res) =>
     res.status(500).json({ error: "No se pudieron obtener los estudiantes" });
   }
 });
+
+/**
+ * POST /api/users/me/hijos/vincular
+ * Vincula un hijo existente en el padrón oficial mediante código único
+ * body: { codigo }
+ */
+router.post(
+  "/me/hijos/vincular",
+  requireAuth,
+  requireRole("familia"),
+  async (req, res) => {
+    try {
+      const codigo = normStr(req.body?.codigo, 80);
+      if (!codigo) return res.status(400).json({ error: "El código es obligatorio" });
+
+      const alumnoPadron = await AlumnoPadron.findOne({ codigo });
+      if (!alumnoPadron) {
+        return res.status(404).json({ error: "Código inválido" });
+      }
+      if (alumnoPadron.vinculado) {
+        return res.status(409).json({ error: "Este estudiante ya está vinculado" });
+      }
+
+      const familia = await User.findById(req.user.uid).select("hijos");
+      if (!familia) {
+        return res.status(404).json({ error: "Cuenta de familia no encontrada" });
+      }
+
+      const hijo = {
+        _id: new ObjectId(),
+        nombre: alumnoPadron.nombre,
+        curso: alumnoPadron.curso,
+        division: alumnoPadron.division,
+      };
+
+      familia.hijos.push(hijo);
+      await familia.save();
+
+      alumnoPadron.vinculado = true;
+      await alumnoPadron.save();
+
+      res.status(201).json({ msg: "Vinculado correctamente", hijo });
+    } catch (err) {
+      console.error("Error vinculando hijo por código:", err);
+      res.status(500).json({ error: "No se pudo vincular al estudiante" });
+    }
+  }
+);
 
 /**
  * POST /api/users/me/hijos
