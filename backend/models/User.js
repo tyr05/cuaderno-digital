@@ -1,12 +1,14 @@
 // models/User.js
 import mongoose from "mongoose";
 
-const hijoSchema = new mongoose.Schema({
-  nombre: { type: String, required: true, trim: true },
-  curso: { type: String, trim: true },
-  division: { type: String, trim: true },
-  studentRef: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-}, { _id: true });
+const hijoSchema = new mongoose.Schema(
+  {
+    nombre: { type: String, required: true, trim: true },
+    curso: { type: String, trim: true },
+    division: { type: String, trim: true },
+  },
+  { _id: true }
+);
 
 const userSchema = new mongoose.Schema({
   nombre: { type: String, required: true, trim: true },

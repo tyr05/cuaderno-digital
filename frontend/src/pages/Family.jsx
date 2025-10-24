@@ -26,9 +26,9 @@ export default function Family() {
   const [anuncios, setAnuncios] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // crear hijo
-  const [nuevo, setNuevo] = useState({ nombre: "", curso: "", division: "" });
-  const [creating, setCreating] = useState(false);
+  // vincular por código
+  const [codigo, setCodigo] = useState("");
+  const [linking, setLinking] = useState(false);
 
   // edición hijo
   const [editId, setEditId] = useState(null);
@@ -50,8 +50,8 @@ export default function Family() {
   async function getHijos() {
     return apiGet("/api/users/me/hijos");
   }
-  async function createHijo(body) {
-    return apiPost("/api/users/me/hijos", body);
+  async function linkHijo(body) {
+    return apiPost("/api/users/me/hijos/vincular", body);
   }
   async function updateHijo(id, body) {
     return apiPut(`/api/users/me/hijos/${id}`, body);
@@ -117,24 +117,26 @@ export default function Family() {
     }
   }
 
-  // Crear hijo
-  async function handleCreate(e) {
+  // Vincular hijo por código
+  async function handleLink(e) {
     e?.preventDefault();
-    if (!nuevo.nombre.trim()) {
-      toastShow?.("El nombre es obligatorio", "error");
+    const value = codigo.trim();
+    if (!value) {
+      toastShow?.("Ingresá un código válido", "error");
       return;
     }
-    setCreating(true);
+    setLinking(true);
     try {
-      await createHijo(nuevo);
-      setNuevo({ nombre: "", curso: "", division: "" });
+      const res = await linkHijo({ codigo: value });
+      setCodigo("");
       const data = await getHijos();
       setHijos(Array.isArray(data) ? data : []);
-      toastShow?.("Hijo agregado");
+      const msg = res?.msg || "Vinculado correctamente";
+      toastShow?.(msg);
     } catch (error) {
-      toastShow?.(error?.error || "No se pudo agregar", "error");
+      toastShow?.(error?.error || "No se pudo vincular", "error");
     } finally {
-      setCreating(false);
+      setLinking(false);
     }
   }
 
@@ -211,7 +213,7 @@ export default function Family() {
       tabs={tabs}
       title="Mis hijos"
       description="Gestioná los estudiantes vinculados a tu cuenta"
-      addNewLabel="Agregar hijo"
+      addNewLabel="Vincular estudiante"
     >
       {/* --- Anuncios --- */}
       <Card>
@@ -285,7 +287,7 @@ export default function Family() {
               <EmptyState
                 icon={<Users className="h-10 w-10 text-brand-500" />}
                 title="Sin hijos cargados"
-                desc="Agregá a tus hijos para comenzar a seguir su asistencia."
+                desc="Todavía no vinculaste estudiantes. Usá el código entregado por la escuela para sumarlos."
               />
             ) : (
               <ul className="space-y-3">
@@ -349,32 +351,24 @@ export default function Family() {
 
         <Card>
           <CardHeader
-            title="Agregar hijo"
-            subtitle="Cargá los datos del estudiante"
+            title="Vincular por código"
+            subtitle="Ingresá el código único que te entregó la escuela"
           />
           <CardBody>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleLink} className="space-y-4">
               <Input
-                label="Nombre del estudiante"
-                value={nuevo.nombre}
-                onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
-                placeholder="María Gómez"
+                label="Código de estudiante"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                placeholder="JP1A1-001"
+                disabled={linking}
                 required
               />
-              <Input
-                label="Curso"
-                value={nuevo.curso}
-                onChange={(e) => setNuevo({ ...nuevo, curso: e.target.value })}
-                placeholder="1º 1"
-              />
-              <Input
-                label="División"
-                value={nuevo.division}
-                onChange={(e) => setNuevo({ ...nuevo, division: e.target.value })}
-                placeholder="TM"
-              />
-              <Button type="submit" className="w-full" loading={creating}>
-                Agregar
+              <p className="text-xs text-subtext">
+                Cada estudiante tiene un código único. Solo se puede usar una vez.
+              </p>
+              <Button type="submit" className="w-full" loading={linking}>
+                Vincular
               </Button>
             </form>
           </CardBody>
