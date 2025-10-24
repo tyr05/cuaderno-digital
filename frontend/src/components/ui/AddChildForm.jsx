@@ -9,6 +9,7 @@ export default function AddChildForm() {
   const [curso, setCurso] = useState("");
   const [division, setDivision] = useState("");
   const abortRef = useRef();
+  const wrapperRef = useRef(null);
 
   // Buscar estudiantes mientras se escribe (debounce 300ms)
   useEffect(() => {
@@ -21,17 +22,33 @@ export default function AddChildForm() {
       try {
         const url = `/api/students/search?q=${encodeURIComponent(query)}&limit=15`;
         const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error("Error al buscar estudiantes");
         const data = await res.json();
-        setOptions(data);
+        setOptions(Array.isArray(data) ? data : []);
         setOpen(true);
       } catch (e) {
         // opcional: mostrar error
+        if (e.name !== "AbortError") {
+          setOptions([]);
+          setOpen(false);
+        }
       } finally {
         setLoading(false);
       }
     }, 300);
     return () => clearTimeout(t);
   }, [query]);
+
+  // Cerrar cuando se hace click afuera
+  useEffect(() => {
+    const handleClick = (event) => {
+      if (!wrapperRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const onSelect = (opt) => {
     setQuery(opt.nombre);
@@ -47,12 +64,16 @@ export default function AddChildForm() {
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3 relative">
+    <form onSubmit={onSubmit} className="space-y-3 relative" ref={wrapperRef}>
       <div className="relative">
         <label className="block text-sm font-medium">Nombre del estudiante</label>
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setCurso("");
+            setDivision("");
+          }}
           onFocus={() => options.length && setOpen(true)}
           className="w-full rounded-xl border px-3 py-2"
           placeholder="Ej: María Gómez"
