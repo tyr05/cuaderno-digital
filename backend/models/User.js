@@ -1,17 +1,18 @@
+// models/User.js
 import mongoose from "mongoose";
 
-const rolesValidos = ["admin", "docente", "padre", "estudiante"];
+const hijoSchema = new mongoose.Schema({
+  nombre: { type: String, required: true, trim: true },
+  curso: { type: String, trim: true },
+  division: { type: String, trim: true },
+}, { _id: true });
 
-const userSchema = new mongoose.Schema(
-  {
-    nombre: { type: String, required: true },
-    email:  { type: String, required: true, unique: true, lowercase: true },
-    passwordHash: { type: String, required: true },
-    rol: { type: String, enum: rolesValidos, default: "padre" },
-    // NUEVO: lista de hijos (users con rol estudiante)
-    hijos: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
-  },
-  { timestamps: true }
-);
+const userSchema = new mongoose.Schema({
+  nombre: { type: String, required: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  passwordHash: { type: String, required: true },
+  rol: { type: String, enum: ["admin", "docente", "familia"], required: true },
+  hijos: [hijoSchema],
+}, { timestamps: true });
 
 export default mongoose.model("User", userSchema);
