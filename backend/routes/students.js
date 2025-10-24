@@ -8,18 +8,32 @@ const router = express.Router();
 router.get("/search", async (req, res) => {
   const { q = "", curso, division, limit = 20 } = req.query;
 
-  // Construir filtro
-  const filter = {};
-  if (q) filter.nombre = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
-  if (curso) filter.curso = Number(curso);
-  if (division) filter.division = isNaN(division) ? division : Number(division);
+  try {
+    // Construir filtro
+    const filter = {};
+    if (q) {
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.nombre = { $regex: escaped, $options: "i" };
+    }
+    if (curso !== undefined) {
+      const parsedCurso = Number(curso);
+      if (!Number.isNaN(parsedCurso)) filter.curso = parsedCurso;
+    }
+    if (division !== undefined) {
+      const parsedDivision = Number(division);
+      filter.division = Number.isNaN(parsedDivision) ? division : parsedDivision;
+    }
 
-  const docs = await Student.find(filter)
-    .select("nombre curso division")
-    .limit(Math.min(Number(limit) || 20, 50))
-    .lean();
+    const docs = await Student.find(filter)
+      .select("nombre curso division")
+      .limit(Math.min(Number(limit) || 20, 50))
+      .lean();
 
-  res.json(docs);
+    res.json(docs);
+  } catch (error) {
+    console.error("Error buscando estudiantes:", error);
+    res.status(500).json({ error: "Error buscando estudiantes" });
+  }
 });
 
 export default router;
