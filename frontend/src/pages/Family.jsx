@@ -1,7 +1,7 @@
 // src/pages/Family.jsx
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthProvider";
-import { apiGet, apiPost } from "../api";
+import { apiGet, apiPost, apiPut, apiDelete } from "../api";
 import Shell from "../components/Shell";
 import { Card, CardBody, CardHeader } from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -54,10 +54,10 @@ export default function Family() {
     return apiPost("/api/users/me/hijos", body);
   }
   async function updateHijo(id, body) {
-    return apiPost(`/api/users/me/hijos/${id}`, body, { method: "PUT" });
+    return apiPut(`/api/users/me/hijos/${id}`, body);
   }
   async function deleteHijo(id) {
-    return apiPost(`/api/users/me/hijos/${id}`, {}, { method: "DELETE" });
+    return apiDelete(`/api/users/me/hijos/${id}`);
   }
 
   // Cargar hijos (solo familia)
@@ -82,7 +82,9 @@ export default function Family() {
     (async () => {
       try {
         await notifyOnLogin(); // crea recibos "notified" para familia
-      } catch {}
+      } catch (error) {
+        console.warn("No se pudo inicializar notificaciones", error);
+      }
       try {
         const res = await getUnreadCount();
         const count = res?.unread ?? res?.count ?? 0;

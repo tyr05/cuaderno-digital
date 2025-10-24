@@ -1,11 +1,14 @@
 // routes/links.js
 import express from "express";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import StudentLinkToken from "../models/StudentLinkToken.js";
 import User from "../models/User.js";
+import Curso from "../models/Curso.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
+const { ObjectId } = mongoose.Types;
 
 /**
  * POST /api/links/generate
@@ -55,12 +58,14 @@ router.post("/generate", requireAuth, requireRole("docente", "admin"), async (re
 
 /**
  * POST /api/links/claim
- * El padre pega el código y queda vinculado al estudiante
+ * La familia ingresa el código y queda vinculada al estudiante
  * body: { code }
  */
-router.post("/claim", requireAuth, requireRole("padre"), async (req, res) => {
+router.post("/claim", requireAuth, requireRole("familia"), async (req, res) => {
   try {
-    const { code } = req.body;
+    const raw = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+    const code = raw.toUpperCase();
+    if (!code) return res.status(400).json({ error: "Falta el código de vinculación" });
 
     const token = await StudentLinkToken.findOne({ code });
     if (!token) return res.status(400).json({ error: "Código inválido" });
@@ -72,16 +77,52 @@ router.post("/claim", requireAuth, requireRole("padre"), async (req, res) => {
       return res.status(400).json({ error: "Código agotado" });
     }
 
-    // Vincular: agrega el estudiante al array 'hijos' del usuario padre (sin duplicar)
-    await User.updateOne(
-      { _id: req.user._id, rol: "padre" },
-      { $addToSet: { hijos: token.studentId } } // $addToSet evita duplicados automáticamente
+    const [familia, student] = await Promise.all([
+      User.findById(req.user.uid).select("rol hijos"),
+      User.findById(token.studentId).select("rol nombre"),
+    ]);
+
+    if (!familia || familia.rol !== "familia") {
+      return res.status(403).json({ error: "La cuenta autenticada no es una familia válida" });
+    }
+    if (!student || student.rol !== "estudiante") {
+      return res.status(400).json({ error: "El estudiante vinculado al código ya no está disponible" });
+    }
+
+    const yaVinculado = (familia.hijos || []).some(
+      (hijo) => hijo.studentRef && hijo.studentRef.equals(student._id)
     );
+    if (yaVinculado) {
+      return res.status(409).json({ error: "Este estudiante ya está vinculado a tu cuenta" });
+    }
 
-    // Incrementa el contador de usos del código
-    await StudentLinkToken.updateOne({ _id: token._id }, { $inc: { uses: 1 } });
+    const curso = await Curso.findOne({ alumnos: student._id }).select("anio division turno nombre");
+    let cursoLabel = "";
+    if (curso) {
+      const partes = [];
+      if (typeof curso.anio === "number") {
+        partes.push(`${curso.anio}°`);
+      }
+      if (curso.division) partes.push(curso.division);
+      cursoLabel = partes.join(" ") || curso.nombre || "";
+    }
+    const divisionLabel = curso?.turno || "";
 
-    return res.json({ ok: true, studentId: token.studentId });
+    const hijo = {
+      _id: new ObjectId(),
+      nombre: student.nombre,
+      curso: cursoLabel || undefined,
+      division: divisionLabel || undefined,
+      studentRef: student._id,
+    };
+
+    familia.hijos.push(hijo);
+    await familia.save();
+
+    token.uses += 1;
+    await token.save();
+
+    return res.json({ msg: "Estudiante vinculado", hijo });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Error al vincular" });
