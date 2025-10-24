@@ -1,3 +1,4 @@
+// routes/auth.js
 import { Router } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -8,7 +9,11 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const router = Router();
 
-// POST /api/auth/register
+/**
+ * POST /api/auth/register
+ * Crea usuarios de rol "familia"
+ * Campos: { nombre, email, password }
+ */
 router.post("/register", async (req, res) => {
   try {
     const nombreRaw = typeof req.body.nombre === "string" ? req.body.nombre.trim() : "";
@@ -38,12 +43,12 @@ router.post("/register", async (req, res) => {
       nombre,
       email,
       passwordHash,
-      rol: "padre"
+      rol: "familia", // 👈 único rol para este endpoint público de registro
     });
 
     res.status(201).json({
       msg: "Usuario creado",
-      user: { id: user._id, nombre: user.nombre, email: user.email, rol: user.rol }
+      user: { id: user._id, nombre: user.nombre, email: user.email, rol: user.rol },
     });
   } catch (e) {
     console.error("Error en el registro de usuario", e);
@@ -51,7 +56,11 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// POST /api/auth/login
+/**
+ * POST /api/auth/login
+ * Campos: { email, password }
+ * Devuelve: { token, user }
+ */
 router.post("/login", async (req, res) => {
   try {
     const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
@@ -72,6 +81,7 @@ router.post("/login", async (req, res) => {
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: "Credenciales inválidas" });
 
+    // JWT con rol que tenga el usuario (admin, docente o familia)
     const token = jwt.sign(
       { uid: user._id, rol: user.rol, nombre: user.nombre },
       JWT_SECRET,
@@ -80,7 +90,7 @@ router.post("/login", async (req, res) => {
 
     res.json({
       token,
-      user: { id: user._id, nombre: user.nombre, email: user.email, rol: user.rol }
+      user: { id: user._id, nombre: user.nombre, email: user.email, rol: user.rol },
     });
   } catch (e) {
     console.error("Error durante el login", e);

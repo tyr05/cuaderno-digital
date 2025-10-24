@@ -1,3 +1,4 @@
+// src/pages/Family.jsx
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthProvider";
 import { apiGet, apiPost } from "../api";
@@ -28,9 +29,9 @@ export default function Family() {
   const [anuncios, setAnuncios] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Rol familia/tutor 
-const rol = (user?.rol || "").toLowerCase();
-const esFamilia = ["familia", "tutor", "padre"].includes(rol);
+  // 🔒 Único rol familiar permitido
+  const rol = (user?.rol || "").toLowerCase();
+  const esFamilia = rol === "familia";
 
   const tabs = [
     { to: "/", label: "Inicio" },
@@ -38,13 +39,13 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
     { to: "/familia", label: "Mis hijos" },
   ];
 
-  // Cargar hijos
+  // Cargar hijos (solo familia)
   useEffect(() => {
     if (!esFamilia) return;
     (async () => {
       setLoadingList(true);
       try {
-        const data = await apiGet("/api/users/me/hijos");
+        const data = await apiGet("/api/users/me/hijos"); // requiere rol familia
         setHijos(Array.isArray(data) ? data : []);
       } catch {
         setHijos([]);
@@ -54,25 +55,23 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
     })();
   }, [esFamilia]);
 
-  // 🔔 Inicializar notificaciones + cargar anuncios y contador
+  // 🔔 Inicializar notificaciones + contador + lista de anuncios
   useEffect(() => {
     if (!esFamilia) return;
     (async () => {
       try {
-        // registra “notified” en backend
-        await notifyOnLogin();
+        await notifyOnLogin(); // crea recibos "notified" para familia
       } catch {}
       try {
-        // contador badge
         const res = await getUnreadCount();
         const count = res?.unread ?? res?.count ?? 0;
         setUnreadCount(count);
       } catch {
         setUnreadCount(0);
       }
-      // cargar lista de anuncios visibles (backend ya filtra por rol)
       setLoadingAnuncios(true);
       try {
+        // backend ya filtra según rol familia
         const data = await apiGet("/api/anuncios");
         setAnuncios(Array.isArray(data) ? data : []);
       } catch {
@@ -88,7 +87,6 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
     try {
       await ackAnuncio(id);
       setUnreadCount((prev) => Math.max(prev - 1, 0));
-      // opcional: atenuar tarjeta
       setAnuncios((prev) => prev.map((a) => (a._id === id ? { ...a, _read: true } : a)));
       toastShow?.("Anuncio marcado como leído");
     } catch {
@@ -101,7 +99,7 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
     if (!email.trim()) return;
     setLoading(true);
     try {
-      await apiPost("/api/users/me/hijos", { email });
+      await apiPost("/api/users/me/hijos", { email }); // requiere rol familia
       toastShow?.("Estudiante vinculado");
       setEmail("");
       const data = await apiGet("/api/users/me/hijos");
@@ -124,8 +122,8 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
           <CardBody className="flex flex-col items-center gap-3 py-12 text-center text-subtext">
             <ShieldAlert className="h-12 w-12 text-brand-500" />
             <p className="max-w-md text-sm">
-              Esta sección está pensada para familias o tutores. Iniciá sesión con una cuenta de
-              familia para vincular estudiantes.
+              Esta sección está pensada para familias. Iniciá sesión con una cuenta de familia para
+              vincular estudiantes y ver anuncios.
             </p>
           </CardBody>
         </Card>
@@ -140,7 +138,7 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
       description="Gestioná los estudiantes vinculados a tu cuenta"
       addNewLabel="Vincular estudiante"
     >
-      {/* --- Anuncios arriba de todo --- */}
+      {/* --- Anuncios --- */}
       <Card>
         <CardHeader
           title="Anuncios de la escuela"
@@ -163,10 +161,7 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
               <Skeleton className="h-6 w-3/4" />
             </div>
           ) : anuncios.length === 0 ? (
-            <EmptyState
-              title="Sin anuncios"
-              desc="Todavía no hay novedades para tu familia."
-            />
+            <EmptyState title="Sin anuncios" desc="Todavía no hay novedades para tu familia." />
           ) : (
             <ul className="space-y-3">
               {anuncios.map((a) => (
@@ -197,7 +192,7 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
         </CardBody>
       </Card>
 
-      {/* --- Resto del contenido de familia --- */}
+      {/* --- Estudiantes vinculados + formulario --- */}
       <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <Card>
           <CardHeader
@@ -215,7 +210,7 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
               <EmptyState
                 icon={<Users className="h-10 w-10 text-brand-500" />}
                 title="Sin estudiantes vinculados"
-                desc="Agregá el correo electrónico del estudiante para comenzar a seguir su asistencia."
+                desc="Agregá el correo del estudiante para comenzar a seguir su asistencia."
               />
             ) : (
               <ul className="space-y-3">
@@ -253,8 +248,8 @@ const esFamilia = ["familia", "tutor", "padre"].includes(rol);
               </Button>
             </form>
             <p className="mt-4 text-xs text-subtext">
-              Si no conocés el correo institucional, solicitá la información a la escuela para completar el
-              vínculo.
+              Si no conocés el correo institucional, solicitá la información a la escuela para completar
+              el vínculo.
             </p>
           </CardBody>
         </Card>

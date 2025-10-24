@@ -7,9 +7,9 @@ import AnuncioRecibo from "../models/AnuncioRecibo.js";
 
 const router = Router();
 
-// Helpers de audiencia
-const FAMILY_ROLES = ["familia", "tutor", "padre"];
-const FAMILY_AUDIENCES = ["todos", "familia", "padres"]; // "padres" por compat durante migración
+// Roles/Audiencias oficiales
+const FAMILY_ROLES = ["familia"];
+const FAMILY_AUDIENCES = ["todos", "familia"];
 
 /**
  * Crear anuncio (docente o admin)
@@ -38,20 +38,20 @@ router.post("/", requireAuth, requireRole("docente", "admin"), async (req, res) 
       titulo,
       contenido,
       curso,
-      visiblePara: (visiblePara || "todos").toLowerCase(),
+      visiblePara: (visiblePara || "todos").toLowerCase(), // normalizado
       autor: req.user.uid,
       alumno: alumnoId || undefined,
     });
 
     res.status(201).json(anuncio);
   } catch (e) {
-    console.error(e);
+    console.error("Error al crear anuncio:", e);
     res.status(500).json({ error: "Error al crear anuncio" });
   }
 });
 
 /**
- * Generar recibos "notified" al ingresar (familia/tutor/padre)
+ * Inicializar recibos “notified” al ingresar (familia)
  * POST /api/anuncios/notify-on-login
  */
 router.post("/notify-on-login", requireAuth, async (req, res) => {
@@ -84,7 +84,7 @@ router.post("/notify-on-login", requireAuth, async (req, res) => {
     const bulk = await AnuncioRecibo.bulkWrite(ops);
     res.json({ ok: true, created: bulk.nUpserted || ops.length });
   } catch (e) {
-    console.error(e);
+    console.error("No se pudo inicializar notificaciones:", e);
     res.status(500).json({ error: "No se pudo inicializar notificaciones" });
   }
 });
@@ -117,7 +117,7 @@ router.get("/count/unread", requireAuth, async (req, res) => {
 
     res.json({ unread });
   } catch (e) {
-    console.error(e);
+    console.error("No se pudo contar no leídos:", e);
     res.status(500).json({ error: "No se pudo contar no leídos" });
   }
 });
@@ -139,14 +139,14 @@ router.post("/ack/:id", requireAuth, async (req, res) => {
 
     res.json({ ok: true });
   } catch (e) {
-    console.error(e);
+    console.error("No se pudo marcar como leído:", e);
     res.status(500).json({ error: "No se pudo marcar como leído" });
   }
 });
 
 /**
  * Listar anuncios por curso / alumno
- * GET /api/anuncios?curso=<cursoId>&alumno=<alumnoId>
+ * GET /api/anuncios?curso=<cursoId>&alumno=<alumnoId>[,alumnoId2...]
  */
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -155,21 +155,22 @@ router.get("/", requireAuth, async (req, res) => {
     if (curso) filtro.curso = curso;
 
     const rol = (req.user?.rol || "").toLowerCase();
+
+    // Permite múltiples alumnos separados por coma
     const alumnoIds = typeof alumno === "string" && alumno.trim()
       ? alumno.split(",").map((s) => s.trim()).filter(Boolean)
       : [];
 
     if (alumnoIds.length) {
       filtro.$or = [{ alumno: null }, { alumno: { $in: alumnoIds } }];
-    } else if (rol === "estudiante") {
-      filtro.$or = [
-        { alumno: null, visiblePara: { $in: ["todos", "estudiantes"] } },
-        { alumno: req.user.uid },
-      ];
-    } else if (FAMILY_ROLES.includes(rol)) {
+    } else if (rol === "familia") {
+      // Familia ve anuncios generales para familia/todos
       filtro.$or = [{ alumno: null, visiblePara: { $in: FAMILY_AUDIENCES } }];
+    } else if (rol === "docente" || rol === "admin") {
+      // Docente/Admin ven todo (o limitá por curso si querés)
     } else {
-      // docente/admin u otros roles → ven todo
+      // Cualquier otro rol (si existiera) → por ahora, nada
+      filtro._id = { $exists: false };
     }
 
     const anuncios = await Anuncio.find(filtro)
@@ -180,7 +181,7 @@ router.get("/", requireAuth, async (req, res) => {
 
     res.json(anuncios);
   } catch (e) {
-    console.error(e);
+    console.error("Error al listar anuncios:", e);
     res.status(500).json({ error: "Error al listar anuncios" });
   }
 });
