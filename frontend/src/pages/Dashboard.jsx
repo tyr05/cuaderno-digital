@@ -44,7 +44,8 @@ export default function Dashboard() {
   ];
   if (esCreador) {
     tabs.push({ to: "/estudiantes", label: "Estudiantes" });
-  } else if (user?.rol === "padre") {
+  }
+  if (user?.rol === "familia") {
     tabs.push({ to: "/familia", label: "Mis hijos" });
   }
 

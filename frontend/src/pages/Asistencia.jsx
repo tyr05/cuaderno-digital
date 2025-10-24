@@ -47,7 +47,7 @@ export default function Asistencia() {
   const [confirmFor, setConfirmFor] = useState(null);
 
   const esDocenteOAdmin = user?.rol === "docente" || user?.rol === "admin";
-  const esPadre = user?.rol === "padre";
+  const esFamilia = user?.rol === "familia";
   const esEstudiante = user?.rol === "estudiante";
   const tabs = [
     { to: "/", label: "Inicio" },
@@ -55,7 +55,8 @@ export default function Asistencia() {
   ];
   if (esDocenteOAdmin) {
     tabs.push({ to: "/estudiantes", label: "Estudiantes" });
-  } else if (esPadre) {
+  }
+  if (esFamilia) {
     tabs.push({ to: "/familia", label: "Mis hijos" });
   }
 
@@ -88,7 +89,7 @@ export default function Asistencia() {
         if (esDocenteOAdmin && cursoSel) {
           const data = await apiGet(`/api/asistencias?curso=${cursoSel}&fecha=${fecha}`);
           setRegistros(data);
-        } else if (esPadre) {
+        } else if (esFamilia) {
           const data = await apiGet(`/api/asistencias?fecha=${fecha}`);
           setRegistros(data);
         } else if (esEstudiante) {
@@ -99,7 +100,7 @@ export default function Asistencia() {
         // manejado por api.js con toast de error
       }
     })();
-  }, [fecha, cursoSel, esDocenteOAdmin, esPadre, esEstudiante, user?.id]);
+  }, [fecha, cursoSel, esDocenteOAdmin, esFamilia, esEstudiante, user?.id]);
 
   // Mapa alumnoId -> estado (para precargar selects)
   useEffect(() => {
@@ -450,7 +451,7 @@ export default function Asistencia() {
 
                         <TD>
                           <div className="flex flex-wrap gap-2">
-                            {esPadre && reg && estado === "ausente" && !justi?.archivoUrl && (
+                            {esFamilia && reg && estado === "ausente" && !justi?.archivoUrl && (
                               <Button variant="soft" onClick={() => abrirJustificar(asistenciaId)}>
                                 Justificar
                               </Button>

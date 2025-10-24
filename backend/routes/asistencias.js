@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import Asistencia from "../models/Asistencia.js";
 import User from "../models/User.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
@@ -36,15 +37,28 @@ async function buildMatchFilter(req, { curso, fecha, alumno, desde, hasta }) {
     if (hasta) match.fecha.$lte = hasta;
   }
 
-  if (req.user.rol === "padre") {
-    const padre = await User.findById(req.user.uid);
-    const hijos = (padre?.hijos || []).map(String);
+  if (req.user.rol === "familia") {
+    const familia = await User.findById(req.user.uid).select("hijos");
+    const hijosRefs = (familia?.hijos || [])
+      .map((hijo) => hijo.studentRef)
+      .filter(Boolean);
+
     if (match.alumno) {
-      if (!hijos.includes(String(match.alumno))) {
+      const target = String(match.alumno);
+      if (!mongoose.Types.ObjectId.isValid(target)) {
+        throw Object.assign(new Error("Identificador de alumno inválido"), { status: 400 });
+      }
+      const autorizado = hijosRefs.some((ref) => String(ref) === target);
+      if (!autorizado) {
         throw Object.assign(new Error("No autorizado para ver a este alumno"), { status: 403 });
       }
+      match.alumno = new mongoose.Types.ObjectId(target);
     } else {
-      match.alumno = { $in: hijos };
+      if (hijosRefs.length === 0) {
+        match.alumno = { $in: [] };
+      } else {
+        match.alumno = { $in: hijosRefs };
+      }
     }
   }
 
@@ -230,18 +244,21 @@ router.get("/", requireAuth, async (req, res) => {
 
 /**
  * POST /api/asistencias/:id/justificar
- * (padre o admin) Sube certificado y deja pendiente de aprobación.
+ * (familia o admin) Sube certificado y deja pendiente de aprobación.
  * form-data: fields { motivo }, file "certificado"
  */
-router.post("/:id/justificar", requireAuth, requireRole("padre","admin"), handleCertificateUpload, async (req,res) => {
+router.post("/:id/justificar", requireAuth, requireRole("familia","admin"), handleCertificateUpload, async (req,res) => {
   const { id } = req.params;
   const a = await Asistencia.findById(id);
   if (!a) return res.status(404).json({ error: "Asistencia no encontrada" });
 
-  // Padre solo puede justificar si el alumno es su hijo
-  if (req.user.rol === "padre") {
-    const padre = await User.findById(req.user.uid);
-    const hijos = (padre?.hijos || []).map(String);
+  // La familia solo puede justificar si el alumno está vinculado
+  if (req.user.rol === "familia") {
+    const familia = await User.findById(req.user.uid).select("hijos");
+    const hijos = (familia?.hijos || [])
+      .map((hijo) => hijo.studentRef)
+      .filter(Boolean)
+      .map(String);
     if (!hijos.includes(String(a.alumno))) {
       return res.status(403).json({ error: "No autorizado para justificar este alumno" });
     }
