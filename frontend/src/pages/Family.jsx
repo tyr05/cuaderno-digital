@@ -9,16 +9,13 @@ import Input from "../components/ui/Input";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 import { useToast } from "../components/ui/Toast";
-import { Users, Link2, ShieldAlert, Bell } from "lucide-react";
+import { Users, ShieldAlert, Bell, Pencil, Trash2, Check, X } from "lucide-react";
 import { notifyOnLogin, getUnreadCount, ackAnuncio } from "../services/anuncios";
 
 export default function Family() {
   const { user } = useAuth();
   const toast = useToast();
   const toastShow = toast?.show;
-
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
 
   // hijos
   const [loadingList, setLoadingList] = useState(true);
@@ -28,6 +25,16 @@ export default function Family() {
   const [loadingAnuncios, setLoadingAnuncios] = useState(true);
   const [anuncios, setAnuncios] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // crear hijo
+  const [nuevo, setNuevo] = useState({ nombre: "", curso: "", division: "" });
+  const [creating, setCreating] = useState(false);
+
+  // edición hijo
+  const [editId, setEditId] = useState(null);
+  const [edit, setEdit] = useState({ nombre: "", curso: "", division: "" });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   // 🔒 Único rol familiar permitido
   const rol = (user?.rol || "").toLowerCase();
@@ -39,13 +46,27 @@ export default function Family() {
     { to: "/familia", label: "Mis hijos" },
   ];
 
+  // Helpers API
+  async function getHijos() {
+    return apiGet("/api/users/me/hijos");
+  }
+  async function createHijo(body) {
+    return apiPost("/api/users/me/hijos", body);
+  }
+  async function updateHijo(id, body) {
+    return apiPost(`/api/users/me/hijos/${id}`, body, { method: "PUT" });
+  }
+  async function deleteHijo(id) {
+    return apiPost(`/api/users/me/hijos/${id}`, {}, { method: "DELETE" });
+  }
+
   // Cargar hijos (solo familia)
   useEffect(() => {
     if (!esFamilia) return;
     (async () => {
       setLoadingList(true);
       try {
-        const data = await apiGet("/api/users/me/hijos"); // requiere rol familia
+        const data = await getHijos();
         setHijos(Array.isArray(data) ? data : []);
       } catch {
         setHijos([]);
@@ -94,20 +115,72 @@ export default function Family() {
     }
   }
 
-  async function handleLink(e) {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setLoading(true);
+  // Crear hijo
+  async function handleCreate(e) {
+    e?.preventDefault();
+    if (!nuevo.nombre.trim()) {
+      toastShow?.("El nombre es obligatorio", "error");
+      return;
+    }
+    setCreating(true);
     try {
-      await apiPost("/api/users/me/hijos", { email }); // requiere rol familia
-      toastShow?.("Estudiante vinculado");
-      setEmail("");
-      const data = await apiGet("/api/users/me/hijos");
+      await createHijo(nuevo);
+      setNuevo({ nombre: "", curso: "", division: "" });
+      const data = await getHijos();
       setHijos(Array.isArray(data) ? data : []);
+      toastShow?.("Hijo agregado");
     } catch (error) {
-      toastShow?.(error?.error || "No se pudo vincular al estudiante", "error");
+      toastShow?.(error?.error || "No se pudo agregar", "error");
     } finally {
-      setLoading(false);
+      setCreating(false);
+    }
+  }
+
+  // Editar hijo
+  function startEdit(h) {
+    setEditId(h._id);
+    setEdit({
+      nombre: h.nombre || "",
+      curso: h.curso || "",
+      division: h.division || "",
+    });
+  }
+  function cancelEdit() {
+    setEditId(null);
+    setEdit({ nombre: "", curso: "", division: "" });
+  }
+  async function saveEdit(id) {
+    if (!edit.nombre.trim()) {
+      toastShow?.("El nombre es obligatorio", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateHijo(id, edit);
+      const data = await getHijos();
+      setHijos(Array.isArray(data) ? data : []);
+      cancelEdit();
+      toastShow?.("Hijo actualizado");
+    } catch (error) {
+      toastShow?.(error?.error || "No se pudo actualizar", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Eliminar hijo
+  async function handleDelete(id) {
+    if (!confirm("¿Eliminar este hijo?")) return;
+    setDeletingId(id);
+    try {
+      await deleteHijo(id);
+      const data = await getHijos();
+      setHijos(Array.isArray(data) ? data : []);
+      toastShow?.("Hijo eliminado");
+    } catch (error) {
+      toastShow?.(error?.error || "No se pudo eliminar", "error");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -123,7 +196,7 @@ export default function Family() {
             <ShieldAlert className="h-12 w-12 text-brand-500" />
             <p className="max-w-md text-sm">
               Esta sección está pensada para familias. Iniciá sesión con una cuenta de familia para
-              vincular estudiantes y ver anuncios.
+              gestionar tus hijos y ver anuncios.
             </p>
           </CardBody>
         </Card>
@@ -136,7 +209,7 @@ export default function Family() {
       tabs={tabs}
       title="Mis hijos"
       description="Gestioná los estudiantes vinculados a tu cuenta"
-      addNewLabel="Vincular estudiante"
+      addNewLabel="Agregar hijo"
     >
       {/* --- Anuncios --- */}
       <Card>
@@ -192,7 +265,7 @@ export default function Family() {
         </CardBody>
       </Card>
 
-      {/* --- Estudiantes vinculados + formulario --- */}
+      {/* --- Hijos + formulario --- */}
       <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <Card>
           <CardHeader
@@ -209,18 +282,62 @@ export default function Family() {
             ) : hijos.length === 0 ? (
               <EmptyState
                 icon={<Users className="h-10 w-10 text-brand-500" />}
-                title="Sin estudiantes vinculados"
-                desc="Agregá el correo del estudiante para comenzar a seguir su asistencia."
+                title="Sin hijos cargados"
+                desc="Agregá a tus hijos para comenzar a seguir su asistencia."
               />
             ) : (
               <ul className="space-y-3">
-                {hijos.map((hijo) => (
-                  <li
-                    key={hijo.id}
-                    className="rounded-2xl border border-muted bg-card/60 p-4 shadow-sm"
-                  >
-                    <div className="font-semibold text-text">{hijo.nombre}</div>
-                    <div className="text-sm text-subtext">{hijo.email}</div>
+                {hijos.map((h) => (
+                  <li key={h._id} className="rounded-2xl border border-muted bg-card/60 p-4 shadow-sm">
+                    {editId === h._id ? (
+                      <div className="grid gap-2 sm:grid-cols-4">
+                        <Input
+                          label="Nombre"
+                          value={edit.nombre}
+                          onChange={(e) => setEdit({ ...edit, nombre: e.target.value })}
+                        />
+                        <Input
+                          label="Curso"
+                          value={edit.curso}
+                          onChange={(e) => setEdit({ ...edit, curso: e.target.value })}
+                        />
+                        <Input
+                          label="División"
+                          value={edit.division}
+                          onChange={(e) => setEdit({ ...edit, division: e.target.value })}
+                        />
+                        <div className="flex gap-2 items-end">
+                          <Button size="sm" onClick={() => saveEdit(h._id)} loading={saving}>
+                            <Check className="h-4 w-4" /> Guardar
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={cancelEdit}>
+                            <X className="h-4 w-4" /> Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <div className="font-semibold text-text">{h.nombre}</div>
+                          <div className="text-sm text-subtext">
+                            {(h.curso || "Sin curso")} · {(h.division || "Sin división")}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="secondary" onClick={() => startEdit(h)}>
+                            <Pencil className="h-4 w-4" /> Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => handleDelete(h._id)}
+                            loading={deletingId === h._id}
+                          >
+                            <Trash2 className="h-4 w-4" /> Eliminar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -230,27 +347,34 @@ export default function Family() {
 
         <Card>
           <CardHeader
-            title="Vincular un nuevo estudiante"
-            subtitle="Necesitás el correo institucional del estudiante"
+            title="Agregar hijo"
+            subtitle="Cargá los datos del estudiante"
           />
           <CardBody>
-            <form onSubmit={handleLink} className="space-y-4">
+            <form onSubmit={handleCreate} className="space-y-4">
               <Input
-                label="Correo del estudiante"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="estudiante@colegio.edu"
+                label="Nombre del estudiante"
+                value={nuevo.nombre}
+                onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
+                placeholder="María Gómez"
                 required
               />
-              <Button type="submit" className="w-full" loading={loading}>
-                <Link2 className="h-4 w-4" /> Vincular
+              <Input
+                label="Curso"
+                value={nuevo.curso}
+                onChange={(e) => setNuevo({ ...nuevo, curso: e.target.value })}
+                placeholder="1º 1"
+              />
+              <Input
+                label="División"
+                value={nuevo.division}
+                onChange={(e) => setNuevo({ ...nuevo, division: e.target.value })}
+                placeholder="TM"
+              />
+              <Button type="submit" className="w-full" loading={creating}>
+                Agregar
               </Button>
             </form>
-            <p className="mt-4 text-xs text-subtext">
-              Si no conocés el correo institucional, solicitá la información a la escuela para completar
-              el vínculo.
-            </p>
           </CardBody>
         </Card>
       </section>

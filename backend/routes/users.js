@@ -8,21 +8,19 @@ const router = Router();
 const { ObjectId } = mongoose.Types;
 
 /* -------------------------------------------------------------------------- */
-/*                               Helpers simples                              */
+/*                                Utilidades                                  */
 /* -------------------------------------------------------------------------- */
 
-function sanitizeStr(v, max = 120) {
+function normStr(v, max = 120) {
   return (typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "").slice(0, max);
 }
 
-function validateHijoPayload(body, { parcial = false } = {}) {
-  const nombre = sanitizeStr(body?.nombre);
-  const curso = sanitizeStr(body?.curso, 40);
-  const division = sanitizeStr(body?.division, 20);
+function parseHijo(body, { parcial = false } = {}) {
+  const nombre = normStr(body?.nombre);
+  const curso = normStr(body?.curso, 40);
+  const division = normStr(body?.division, 20);
 
-  if (!parcial) {
-    if (!nombre) return { error: "El nombre del hijo es obligatorio" };
-  }
+  if (!parcial && !nombre) return { error: "El nombre del hijo es obligatorio" };
 
   const data = {};
   if (nombre) data.nombre = nombre;
@@ -36,12 +34,12 @@ function validateHijoPayload(body, { parcial = false } = {}) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                      Rutas de FAMILIA: gestiona sus hijos                  */
+/*                        Rutas de FAMILIA (autogestión)                      */
 /* -------------------------------------------------------------------------- */
 
 /**
  * GET /api/users/me/hijos
- * Devuelve los hijos (subdocumentos) del usuario familia autenticado
+ * Devuelve los hijos (subdocs) de la cuenta familia autenticada
  */
 router.get("/me/hijos", requireAuth, requireRole("familia"), async (req, res) => {
   try {
@@ -56,18 +54,18 @@ router.get("/me/hijos", requireAuth, requireRole("familia"), async (req, res) =>
 
 /**
  * POST /api/users/me/hijos
- * Crea un hijo (subdocumento) en la cuenta familia
+ * Crea un hijo (subdocumento) en la familia
  * body: { nombre, curso?, division? }
  */
 router.post("/me/hijos", requireAuth, requireRole("familia"), async (req, res) => {
   try {
-    const { data, error } = validateHijoPayload(req.body);
+    const { data, error } = parseHijo(req.body);
     if (error) return res.status(400).json({ error });
 
     const familia = await User.findById(req.user.uid).select("hijos");
     if (!familia) return res.status(404).json({ error: "Cuenta de familia no encontrada" });
 
-    const nuevo = { ...data, _id: new ObjectId() };
+    const nuevo = { _id: new ObjectId(), ...data };
     familia.hijos.push(nuevo);
     await familia.save();
 
@@ -88,11 +86,9 @@ router.put("/me/hijos/:hijoId", requireAuth, requireRole("familia"), async (req,
     const { hijoId } = req.params;
     if (!ObjectId.isValid(hijoId)) return res.status(400).json({ error: "hijoId inválido" });
 
-    const { data, error } = validateHijoPayload(req.body, { parcial: true });
+    const { data, error } = parseHijo(req.body, { parcial: true });
     if (error) return res.status(400).json({ error });
-    if (Object.keys(data).length === 0) {
-      return res.status(400).json({ error: "Nada para actualizar" });
-    }
+    if (Object.keys(data).length === 0) return res.status(400).json({ error: "Nada para actualizar" });
 
     const familia = await User.findById(req.user.uid).select("hijos");
     if (!familia) return res.status(404).json({ error: "Cuenta de familia no encontrada" });
@@ -122,9 +118,9 @@ router.delete("/me/hijos/:hijoId", requireAuth, requireRole("familia"), async (r
     const familia = await User.findById(req.user.uid).select("hijos");
     if (!familia) return res.status(404).json({ error: "Cuenta de familia no encontrada" });
 
-    const antes = familia.hijos.length;
+    const before = familia.hijos.length;
     familia.hijos = familia.hijos.filter(h => String(h._id) !== String(hijoId));
-    if (familia.hijos.length === antes) {
+    if (familia.hijos.length === before) {
       return res.status(404).json({ error: "Hijo no encontrado" });
     }
 
@@ -137,12 +133,12 @@ router.delete("/me/hijos/:hijoId", requireAuth, requireRole("familia"), async (r
 });
 
 /* -------------------------------------------------------------------------- */
-/*                   Rutas de ADMIN: gestiona hijos de familias               */
+/*                        Rutas de ADMIN (gestión externa)                    */
 /* -------------------------------------------------------------------------- */
 
 /**
  * GET /api/users/:familiaId/hijos
- * Admin: lista hijos de una familia
+ * Lista hijos de una familia
  */
 router.get("/:familiaId/hijos", requireAuth, requireRole("admin"), async (req, res) => {
   try {
@@ -151,9 +147,8 @@ router.get("/:familiaId/hijos", requireAuth, requireRole("admin"), async (req, r
 
     const familia = await User.findById(familiaId).select("rol hijos");
     if (!familia) return res.status(404).json({ error: "Familia no encontrada" });
-    if (familia.rol !== "familia") {
-      return res.status(400).json({ error: "El usuario destino no tiene rol familia" });
-    }
+    if (familia.rol !== "familia") return res.status(400).json({ error: "El usuario destino no tiene rol familia" });
+
     res.json(familia.hijos || []);
   } catch (err) {
     console.error("Error listando hijos (admin):", err);
@@ -163,7 +158,7 @@ router.get("/:familiaId/hijos", requireAuth, requireRole("admin"), async (req, r
 
 /**
  * POST /api/users/:familiaId/hijos
- * Admin: agrega un hijo a una familia
+ * Agrega un hijo a una familia
  * body: { nombre, curso?, division? }
  */
 router.post("/:familiaId/hijos", requireAuth, requireRole("admin"), async (req, res) => {
@@ -171,16 +166,14 @@ router.post("/:familiaId/hijos", requireAuth, requireRole("admin"), async (req, 
     const { familiaId } = req.params;
     if (!ObjectId.isValid(familiaId)) return res.status(400).json({ error: "familiaId inválido" });
 
-    const { data, error } = validateHijoPayload(req.body);
+    const { data, error } = parseHijo(req.body);
     if (error) return res.status(400).json({ error });
 
     const familia = await User.findById(familiaId).select("rol hijos");
     if (!familia) return res.status(404).json({ error: "Familia no encontrada" });
-    if (familia.rol !== "familia") {
-      return res.status(400).json({ error: "El usuario destino no tiene rol familia" });
-    }
+    if (familia.rol !== "familia") return res.status(400).json({ error: "El usuario destino no tiene rol familia" });
 
-    const nuevo = { ...data, _id: new ObjectId() };
+    const nuevo = { _id: new ObjectId(), ...data };
     familia.hijos.push(nuevo);
     await familia.save();
 
@@ -193,7 +186,7 @@ router.post("/:familiaId/hijos", requireAuth, requireRole("admin"), async (req, 
 
 /**
  * PUT /api/users/:familiaId/hijos/:hijoId
- * Admin: actualiza un hijo de una familia
+ * Actualiza datos de un hijo de una familia
  */
 router.put("/:familiaId/hijos/:hijoId", requireAuth, requireRole("admin"), async (req, res) => {
   try {
@@ -202,17 +195,13 @@ router.put("/:familiaId/hijos/:hijoId", requireAuth, requireRole("admin"), async
       return res.status(400).json({ error: "IDs inválidos" });
     }
 
-    const { data, error } = validateHijoPayload(req.body, { parcial: true });
+    const { data, error } = parseHijo(req.body, { parcial: true });
     if (error) return res.status(400).json({ error });
-    if (Object.keys(data).length === 0) {
-      return res.status(400).json({ error: "Nada para actualizar" });
-    }
+    if (Object.keys(data).length === 0) return res.status(400).json({ error: "Nada para actualizar" });
 
     const familia = await User.findById(familiaId).select("rol hijos");
     if (!familia) return res.status(404).json({ error: "Familia no encontrada" });
-    if (familia.rol !== "familia") {
-      return res.status(400).json({ error: "El usuario destino no tiene rol familia" });
-    }
+    if (familia.rol !== "familia") return res.status(400).json({ error: "El usuario destino no tiene rol familia" });
 
     const hijo = familia.hijos.id(hijoId);
     if (!hijo) return res.status(404).json({ error: "Hijo no encontrado" });
@@ -229,7 +218,7 @@ router.put("/:familiaId/hijos/:hijoId", requireAuth, requireRole("admin"), async
 
 /**
  * DELETE /api/users/:familiaId/hijos/:hijoId
- * Admin: elimina un hijo de una familia
+ * Elimina un hijo de una familia
  */
 router.delete("/:familiaId/hijos/:hijoId", requireAuth, requireRole("admin"), async (req, res) => {
   try {
@@ -240,13 +229,11 @@ router.delete("/:familiaId/hijos/:hijoId", requireAuth, requireRole("admin"), as
 
     const familia = await User.findById(familiaId).select("rol hijos");
     if (!familia) return res.status(404).json({ error: "Familia no encontrada" });
-    if (familia.rol !== "familia") {
-      return res.status(400).json({ error: "El usuario destino no tiene rol familia" });
-    }
+    if (familia.rol !== "familia") return res.status(400).json({ error: "El usuario destino no tiene rol familia" });
 
-    const antes = familia.hijos.length;
+    const before = familia.hijos.length;
     familia.hijos = familia.hijos.filter(h => String(h._id) !== String(hijoId));
-    if (familia.hijos.length === antes) {
+    if (familia.hijos.length === before) {
       return res.status(404).json({ error: "Hijo no encontrado" });
     }
 
