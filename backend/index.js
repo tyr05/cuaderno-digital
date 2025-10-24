@@ -10,8 +10,6 @@ dotenv.config();
 
 // 2) Crear la app y middlewares base
 const app = express();
-
-// (Render/proxies) para que req.ip / req.secure funcionen ok detrás de proxy
 app.set("trust proxy", 1);
 
 // ---- CORS: definir whitelist y habilitar preflight en TODAS las rutas ----
