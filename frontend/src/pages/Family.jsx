@@ -1,7 +1,7 @@
 // src/pages/Family.jsx
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthProvider";
-import { apiGet, apiPost, apiPut, apiDelete } from "../api";
+import { apiGet, apiPost, apiDelete } from "../api";
 import Shell from "../components/Shell";
 import { Card, CardBody, CardHeader } from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -9,8 +9,10 @@ import Input from "../components/ui/Input";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 import { useToast } from "../components/ui/Toast";
-import { Users, ShieldAlert, Bell, Pencil, Trash2, Check, X } from "lucide-react";
+import { Users, ShieldAlert, Bell, Trash2 } from "lucide-react";
 import { notifyOnLogin, getUnreadCount, ackAnuncio } from "../services/anuncios";
+
+const CODE_REGEX = /^[A-Z]{3}-\d{2}-\d{3}$/;
 
 export default function Family() {
   const { user } = useAuth();
@@ -29,11 +31,6 @@ export default function Family() {
   // vincular por código
   const [codigo, setCodigo] = useState("");
   const [linking, setLinking] = useState(false);
-
-  // edición hijo
-  const [editId, setEditId] = useState(null);
-  const [edit, setEdit] = useState({ nombre: "", curso: "", division: "" });
-  const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
   // 🔒 Único rol familiar permitido
@@ -48,16 +45,14 @@ export default function Family() {
 
   // Helpers API
   async function getHijos() {
-    return apiGet("/api/users/me/hijos");
+    const res = await apiGet("/api/familias/mis-hijos");
+    return Array.isArray(res?.hijos) ? res.hijos : [];
   }
   async function linkHijo(body) {
-    return apiPost("/api/users/me/hijos/vincular", body);
-  }
-  async function updateHijo(id, body) {
-    return apiPut(`/api/users/me/hijos/${id}`, body);
+    return apiPost("/api/familias/vinculos", body);
   }
   async function deleteHijo(id) {
-    return apiDelete(`/api/users/me/hijos/${id}`);
+    return apiDelete(`/api/familias/vinculos/${id}`);
   }
 
   // Cargar hijos (solo familia)
@@ -67,7 +62,7 @@ export default function Family() {
       setLoadingList(true);
       try {
         const data = await getHijos();
-        setHijos(Array.isArray(data) ? data : []);
+        setHijos(data);
       } catch {
         setHijos([]);
       } finally {
@@ -127,62 +122,40 @@ export default function Family() {
     }
     setLinking(true);
     try {
-      const res = await linkHijo({ codigo: value });
+      const uppercase = value.toUpperCase();
+      setCodigo(uppercase);
+      if (!CODE_REGEX.test(uppercase)) {
+        toastShow?.("Ingresá un código con formato AAA-00-000", "error");
+        return;
+      }
+      const res = await linkHijo({ codigo: uppercase });
       setCodigo("");
       const data = await getHijos();
-      setHijos(Array.isArray(data) ? data : []);
-      const msg = res?.msg || "Vinculado correctamente";
+      setHijos(data);
+      const msg = res?.message || res?.msg || "Estudiante vinculado";
       toastShow?.(msg);
     } catch (error) {
-      toastShow?.(error?.error || "No se pudo vincular", "error");
+      let message = error?.error || "No se pudo vincular";
+      if (error?.status === 404) message = "No encontramos un estudiante con ese código";
+      else if (error?.status === 409) message = "El código ya fue utilizado";
+      else if (error?.status === 400) message = "Revisá el formato del código (AAA-00-000)";
+      toastShow?.(message, "error");
     } finally {
       setLinking(false);
     }
   }
 
-  // Editar hijo
-  function startEdit(h) {
-    setEditId(h._id);
-    setEdit({
-      nombre: h.nombre || "",
-      curso: h.curso || "",
-      division: h.division || "",
-    });
-  }
-  function cancelEdit() {
-    setEditId(null);
-    setEdit({ nombre: "", curso: "", division: "" });
-  }
-  async function saveEdit(id) {
-    if (!edit.nombre.trim()) {
-      toastShow?.("El nombre es obligatorio", "error");
-      return;
-    }
-    setSaving(true);
-    try {
-      await updateHijo(id, edit);
-      const data = await getHijos();
-      setHijos(Array.isArray(data) ? data : []);
-      cancelEdit();
-      toastShow?.("Hijo actualizado");
-    } catch (error) {
-      toastShow?.(error?.error || "No se pudo actualizar", "error");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   // Eliminar hijo
   async function handleDelete(id) {
-    if (!confirm("¿Eliminar este hijo?")) return;
+    if (!confirm("¿Desvincular este estudiante?")) return;
     setDeletingId(id);
     try {
-      await deleteHijo(id);
+      const res = await deleteHijo(id);
       const data = await getHijos();
-      setHijos(Array.isArray(data) ? data : []);
-      toastShow?.("Hijo eliminado");
+      setHijos(data);
+      toastShow?.(res?.message || "Vínculo eliminado");
     } catch (error) {
-      toastShow?.(error?.error || "No se pudo eliminar", "error");
+      toastShow?.(error?.error || "No se pudo desvincular", "error");
     } finally {
       setDeletingId(null);
     }
@@ -292,56 +265,36 @@ export default function Family() {
             ) : (
               <ul className="space-y-3">
                 {hijos.map((h) => (
-                  <li key={h._id} className="rounded-2xl border border-muted bg-card/60 p-4 shadow-sm">
-                    {editId === h._id ? (
-                      <div className="grid gap-2 sm:grid-cols-4">
-                        <Input
-                          label="Nombre"
-                          value={edit.nombre}
-                          onChange={(e) => setEdit({ ...edit, nombre: e.target.value })}
-                        />
-                        <Input
-                          label="Curso"
-                          value={edit.curso}
-                          onChange={(e) => setEdit({ ...edit, curso: e.target.value })}
-                        />
-                        <Input
-                          label="División"
-                          value={edit.division}
-                          onChange={(e) => setEdit({ ...edit, division: e.target.value })}
-                        />
-                        <div className="flex gap-2 items-end">
-                          <Button size="sm" onClick={() => saveEdit(h._id)} loading={saving}>
-                            <Check className="h-4 w-4" /> Guardar
-                          </Button>
-                          <Button size="sm" variant="secondary" onClick={cancelEdit}>
-                            <X className="h-4 w-4" /> Cancelar
-                          </Button>
+                  <li
+                    key={h.studentId || h._id || h.codigo}
+                    className="rounded-2xl border border-muted bg-card/60 p-4 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="font-semibold text-text">{h.nombre}</div>
+                        <div className="text-sm text-subtext">
+                          {(h.curso ?? "Sin curso")} · {(h.division ?? "Sin división")}
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div>
-                          <div className="font-semibold text-text">{h.nombre}</div>
-                          <div className="text-sm text-subtext">
-                            {(h.curso || "Sin curso")} · {(h.division || "Sin división")}
+                        <div className="text-xs text-muted mt-1 font-mono">
+                          Código: {h.codigo}
+                        </div>
+                        {h.linkedAt && (
+                          <div className="text-xs text-muted mt-1">
+                            Vinculado el {new Date(h.linkedAt).toLocaleDateString("es-AR")}
                           </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="secondary" onClick={() => startEdit(h)}>
-                            <Pencil className="h-4 w-4" /> Editar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => handleDelete(h._id)}
-                            loading={deletingId === h._id}
-                          >
-                            <Trash2 className="h-4 w-4" /> Eliminar
-                          </Button>
-                        </div>
+                        )}
                       </div>
-                    )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDelete(h.studentId)}
+                          loading={deletingId === h.studentId}
+                        >
+                          <Trash2 className="h-4 w-4" /> Desvincular
+                        </Button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -359,13 +312,13 @@ export default function Family() {
               <Input
                 label="Código de estudiante"
                 value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-                placeholder="JP1A1-001"
+                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                placeholder="BJZ-11-001"
                 disabled={linking}
                 required
               />
               <p className="text-xs text-subtext">
-                Cada estudiante tiene un código único. Solo se puede usar una vez.
+                Cada estudiante tiene un código único. Solo se puede usar una vez por familia.
               </p>
               <Button type="submit" className="w-full" loading={linking}>
                 Vincular

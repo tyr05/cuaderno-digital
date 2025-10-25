@@ -1,7 +1,7 @@
 import { Router } from "express";
 import mongoose from "mongoose";
 import Asistencia from "../models/Asistencia.js";
-import User from "../models/User.js";
+import FamilyStudent from "../models/FamilyStudent.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { upload } from "../middleware/upload.js";
 
@@ -38,17 +38,20 @@ async function buildMatchFilter(req, { curso, fecha, alumno, desde, hasta }) {
   }
 
   if (req.user.rol === "familia") {
-    const familia = await User.findById(req.user.uid).select("hijos");
-    const hijosRefs = (familia?.hijos || [])
-      .map((hijo) => hijo.studentRef)
-      .filter(Boolean);
+    const vinculaciones = await FamilyStudent.find({ familyId: req.user.uid })
+      .select("studentId")
+      .lean();
+    const hijosRefs = vinculaciones
+      .map((v) => v.studentId)
+      .filter(Boolean)
+      .map((id) => id.toString());
 
     if (match.alumno) {
       const target = String(match.alumno);
       if (!mongoose.Types.ObjectId.isValid(target)) {
         throw Object.assign(new Error("Identificador de alumno inválido"), { status: 400 });
       }
-      const autorizado = hijosRefs.some((ref) => String(ref) === target);
+      const autorizado = hijosRefs.some((ref) => ref === target);
       if (!autorizado) {
         throw Object.assign(new Error("No autorizado para ver a este alumno"), { status: 403 });
       }
@@ -57,7 +60,7 @@ async function buildMatchFilter(req, { curso, fecha, alumno, desde, hasta }) {
       if (hijosRefs.length === 0) {
         match.alumno = { $in: [] };
       } else {
-        match.alumno = { $in: hijosRefs };
+        match.alumno = { $in: hijosRefs.map((id) => new mongoose.Types.ObjectId(id)) };
       }
     }
   }
@@ -254,12 +257,16 @@ router.post("/:id/justificar", requireAuth, requireRole("familia","admin"), hand
 
   // La familia solo puede justificar si el alumno está vinculado
   if (req.user.rol === "familia") {
-    const familia = await User.findById(req.user.uid).select("hijos");
-    const hijos = (familia?.hijos || [])
-      .map((hijo) => hijo.studentRef)
-      .filter(Boolean)
-      .map(String);
-    if (!hijos.includes(String(a.alumno))) {
+    const vinculaciones = await FamilyStudent.find({ familyId: req.user.uid })
+      .select("studentId")
+      .lean();
+    const hijos = new Set(
+      vinculaciones
+        .map((v) => v.studentId)
+        .filter(Boolean)
+        .map((id) => id.toString()),
+    );
+    if (!hijos.has(String(a.alumno))) {
       return res.status(403).json({ error: "No autorizado para justificar este alumno" });
     }
   }
