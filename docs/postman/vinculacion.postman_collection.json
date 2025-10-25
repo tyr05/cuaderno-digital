@@ -1,0 +1,175 @@
+{
+  "info": {
+    "name": "Cuaderno Digital - Vinculación",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Flujo completo para vincular estudiantes mediante código"
+  },
+  "item": [
+    {
+      "name": "Login familia",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.token) {",
+              "  pm.collectionVariables.set('token', json.token);",
+              "  console.log('Token almacenado en variables de colección');",
+              "}",
+              "if (json.user && json.user.id) {",
+              "  pm.collectionVariables.set('familyId', json.user.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"familia@example.com\",\n  \"password\": \"SECRETO\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST vincular estudiante",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codigo\": \"{{codigo}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/familias/vinculos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "familias",
+            "vinculos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET mis hijos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json && Array.isArray(json.hijos) && json.hijos.length) {",
+              "  const first = json.hijos[0];",
+              "  if (first.studentId) {",
+              "    pm.collectionVariables.set('studentId', first.studentId);",
+              "  }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/familias/mis-hijos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "familias",
+            "mis-hijos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "DELETE desvincular",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/familias/vinculos/{{studentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "familias",
+            "vinculos",
+            "{{studentId}}"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "codigo",
+      "value": "BJZ-11-001"
+    },
+    {
+      "key": "studentId",
+      "value": ""
+    },
+    {
+      "key": "familyId",
+      "value": ""
+    }
+  ]
+}

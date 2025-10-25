@@ -102,8 +102,10 @@ async function handle(res) {
     } catch {
       err = { error: res.statusText || "Error de red" };
     }
-    if (toastFn) toastFn(err.error || "Error", "error");
-    throw err;
+    const errorData = typeof err === "object" && err !== null ? { ...err } : { error: String(err) };
+    errorData.status = res.status;
+    if (toastFn) toastFn(errorData.error || "Error", "error");
+    throw errorData;
   }
   try {
     return await res.json();
