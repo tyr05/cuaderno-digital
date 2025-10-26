@@ -4,7 +4,15 @@ import mongoose from "mongoose";
 const StudentSchema = new mongoose.Schema(
   {
     nombre: { type: String, required: true, trim: true },
-    curso: { type: Number, required: true },
+    curso: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+      set: (val) => {
+        if (typeof val === "string") return val.trim();
+        if (typeof val === "number") return val;
+        return val;
+      },
+    },
     division: { type: String, required: true, trim: true },
     codigo: {
       type: String,

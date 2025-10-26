@@ -34,16 +34,76 @@ function buildFieldFilter(raw) {
 
 function normalizeForCompare(value) {
   if (value === undefined || value === null) return "";
-  return String(value).trim().toLowerCase();
+  return String(value)
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeCursoForCompare(value) {
+  const normalized = normalizeForCompare(value);
+  if (!normalized) return "";
+  return normalized.replace(/[º°]/g, "").replace(/\s+/g, "");
+}
+
+function buildCursoFilter(...rawValues) {
+  const values = new Set();
+
+  rawValues.forEach((raw) => {
+    buildComparableValues(raw).forEach((val) => {
+      if (val !== "" && val !== undefined && val !== null) {
+        values.add(val);
+      }
+    });
+
+    const asString = String(raw ?? "").trim();
+    if (asString) {
+      values.add(asString);
+      const withoutOrdinal = asString.replace(/[º°]/g, "").trim();
+      if (withoutOrdinal) {
+        values.add(withoutOrdinal);
+        const numeric = Number(withoutOrdinal);
+        if (!Number.isNaN(numeric)) {
+          values.add(numeric);
+        }
+      }
+
+      const digitsOnly = asString.replace(/[^0-9]/g, "");
+      if (digitsOnly) {
+        values.add(digitsOnly);
+        values.add(`${digitsOnly}°`);
+        values.add(`${digitsOnly}º`);
+        const asNumber = Number(digitsOnly);
+        if (!Number.isNaN(asNumber)) {
+          values.add(asNumber);
+        }
+      }
+    }
+
+    const normalizedCurso = normalizeCursoForCompare(raw);
+    if (normalizedCurso) {
+      values.add(normalizedCurso);
+    }
+  });
+
+  const result = Array.from(values).filter((val) => val !== "");
+  if (result.length === 0) return undefined;
+  if (result.length === 1) return result[0];
+  return { $in: result };
 }
 
 function studentMatchesCurso(student, cursoDoc) {
   if (!student || !cursoDoc) return false;
 
-  const matchesCurso =
-    normalizeForCompare(student.curso) === normalizeForCompare(cursoDoc.anio ?? cursoDoc.nombre);
+  const studentCurso = normalizeCursoForCompare(student.curso);
+  const cursoTargets = [cursoDoc.anio, cursoDoc.nombre]
+    .map((value) => normalizeCursoForCompare(value))
+    .filter(Boolean);
 
-  if (!matchesCurso) return false;
+  if (cursoTargets.length && (!studentCurso || !cursoTargets.includes(studentCurso))) {
+    return false;
+  }
 
   const cursoDivision = normalizeForCompare(cursoDoc.division);
   if (!cursoDivision) return true;
@@ -66,13 +126,13 @@ router.get("/", requireAuth, requireRole("docente", "admin"), async (req, res) =
         return res.status(404).json({ error: "Curso no encontrado" });
       }
 
-      const cursoFilter = buildFieldFilter(cursoDoc.anio ?? cursoDoc.nombre);
+      const cursoFilter = buildCursoFilter(cursoDoc.anio, cursoDoc.nombre);
       if (cursoFilter) filter.curso = cursoFilter;
 
       const divisionFilter = buildFieldFilter(cursoDoc.division);
       if (divisionFilter) filter.division = divisionFilter;
     } else {
-      const cursoFilter = buildFieldFilter(curso);
+      const cursoFilter = buildCursoFilter(curso);
       if (cursoFilter) filter.curso = cursoFilter;
 
       const divisionFilter = buildFieldFilter(division);
@@ -83,10 +143,20 @@ router.get("/", requireAuth, requireRole("docente", "admin"), async (req, res) =
       return res.status(400).json({ error: "Debés indicar cursoId o curso/división" });
     }
 
-    const docs = await Student.find(filter)
+    let docs = await Student.find(filter)
       .select("nombre curso division codigo")
       .sort({ nombre: 1 })
       .lean();
+
+    if (cursoDoc && filter.curso && docs.length === 0) {
+      const fallbackFilter = {};
+      if (filter.division) fallbackFilter.division = filter.division;
+
+      docs = await Student.find(fallbackFilter)
+        .select("nombre curso division codigo")
+        .sort({ nombre: 1 })
+        .lean();
+    }
 
     if (cursoDoc) {
       const filtered = docs.filter((student) => studentMatchesCurso(student, cursoDoc));
@@ -112,7 +182,7 @@ router.get("/search", requireAuth, requireRole("docente", "admin"), async (req, 
       filter.nombre = { $regex: escaped, $options: "i" };
     }
     if (curso !== undefined) {
-      const cursoFilter = buildFieldFilter(curso);
+      const cursoFilter = buildCursoFilter(curso);
       if (cursoFilter) filter.curso = cursoFilter;
     }
     if (division !== undefined) {

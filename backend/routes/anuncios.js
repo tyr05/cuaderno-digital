@@ -8,7 +8,17 @@ import Student from "../models/Student.js";
 
 function normalize(value) {
   if (value === undefined || value === null) return "";
-  return String(value).trim().toLowerCase();
+  return String(value)
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeCurso(value) {
+  const normalized = normalize(value);
+  if (!normalized) return "";
+  return normalized.replace(/[º°]/g, "").replace(/\s+/g, "");
 }
 
 const router = Router();
@@ -39,9 +49,9 @@ router.post("/", requireAuth, requireRole("docente", "admin"), async (req, res) 
         return res.status(404).json({ error: "Estudiante no encontrado" });
       }
 
-      const cursoValor = normalize(cursoDoc.anio ?? cursoDoc.nombre);
-      const alumnoCursoValor = normalize(alumnoDoc.curso);
-      if (!cursoValor || cursoValor !== alumnoCursoValor) {
+      const cursoValores = [normalizeCurso(cursoDoc.anio), normalizeCurso(cursoDoc.nombre)].filter(Boolean);
+      const alumnoCursoValor = normalizeCurso(alumnoDoc.curso);
+      if (cursoValores.length && (!alumnoCursoValor || !cursoValores.includes(alumnoCursoValor))) {
         return res.status(400).json({ error: "El estudiante no pertenece al curso seleccionado" });
       }
 
