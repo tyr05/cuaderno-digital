@@ -26,4 +26,4 @@ StudentSchema.path("codigo").validate((value) => {
 StudentSchema.index({ nombre: "text" });
 StudentSchema.index({ codigo: 1 }, { unique: true });
 
-export default mongoose.models.Student || mongoose.model("Student", StudentSchema);
+export default mongoose.models.Student || mongoose.model("Student", StudentSchema, "estudiantes");
