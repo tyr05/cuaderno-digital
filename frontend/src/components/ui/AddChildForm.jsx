@@ -21,7 +21,9 @@ export default function AddChildForm() {
       setLoading(true);
       try {
         const url = `/api/students/search?q=${encodeURIComponent(query)}&limit=15`;
-        const res = await fetch(url, { signal: controller.signal });
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(url, { signal: controller.signal, headers });
         if (!res.ok) throw new Error("Error al buscar estudiantes");
         const data = await res.json();
         setOptions(Array.isArray(data) ? data : []);

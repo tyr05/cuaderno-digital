@@ -1,11 +1,12 @@
 // routes/students.js
 import express from "express";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 import Student from "../models/Student.js";
 
 const router = express.Router();
 
 // GET /api/students/search?q=mar&curso=1&division=1&limit=20
-router.get("/search", async (req, res) => {
+router.get("/search", requireAuth, requireRole("docente", "admin"), async (req, res) => {
   const { q = "", curso, division, limit = 20 } = req.query;
 
   try {

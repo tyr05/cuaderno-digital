@@ -1,0 +1,192 @@
+{
+  "info": {
+    "name": "Cuaderno Digital - Roles admin/docente",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Escenarios para validar permisos de anuncios y padrones para admin/docente vs familia"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "adminEmail", "value": "admin@example.com" },
+    { "key": "adminPassword", "value": "admin123" },
+    { "key": "familiaEmail", "value": "familia@example.com" },
+    { "key": "familiaPassword", "value": "familia123" },
+    { "key": "cursoId", "value": "REEMPLAZAR_CURSO_ID" }
+  ],
+  "item": [
+    {
+      "name": "Login admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login admin ok', function () { pm.response.to.have.status(200); });",
+              "const jsonData = pm.response.json();",
+              "pm.collectionVariables.set('adminToken', jsonData.token || '');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Admin crea anuncio",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Anuncio creado por admin', function () { pm.response.to.have.status(201); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Acto escolar\",\n  \"contenido\": \"Recordatorio de acto institucional.\",\n  \"curso\": \"{{cursoId}}\",\n  \"visiblePara\": \"todos\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/anuncios",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "anuncios"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Admin lista cursos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Cursos visibles para admin', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/cursos",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "cursos"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Admin busca estudiantes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Busqueda estudiantes admin', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/students/search?q=mar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "students", "search"],
+          "query": [
+            { "key": "q", "value": "mar" }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login familia",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login familia ok', function () { pm.response.to.have.status(200); });",
+              "const jsonData = pm.response.json();",
+              "pm.collectionVariables.set('familiaToken', jsonData.token || '');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{familiaEmail}}\",\n  \"password\": \"{{familiaPassword}}\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Familia no puede crear anuncio",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Familia recibe 403', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{familiaToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Intento no permitido\",\n  \"contenido\": \"Las familias no deberían publicar.\",\n  \"curso\": \"{{cursoId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/anuncios",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "anuncios"]
+        }
+      },
+      "response": []
+    }
+  ]
+}
