@@ -69,6 +69,17 @@ VITE_API_URL=http://localhost:5000
 
 La colección `docs/postman/vinculacion.postman_collection.json` contiene las cuatro requests listas para ejecutar (login, vincular, listar, eliminar). Importarla en Postman y actualizar las variables `baseUrl`, `codigo` y credenciales.
 
+### Consultar estudiantes por curso
+
+1. Levantá el backend con `npm start` y autenticá un usuario docente o admin (por ejemplo con la request "Login admin" de la colección `docs/postman/admin-anuncios-estudiantes.postman_collection.json`).
+2. Ejecutá `GET /api/students?cursoId=<ID_DEL_CURSO>` agregando el header `Authorization: Bearer <token>`.
+   ```bash
+   curl -H "Authorization: Bearer $TOKEN" "http://localhost:5000/api/students?cursoId=64f0..."
+   ```
+3. La respuesta devuelve un arreglo de estudiantes con `nombre`, `curso`, `division` y `codigo` listos para mostrarse en el frontend.
+
+> La colección "Cuaderno Digital - Roles admin/docente" incluye la request **Admin obtiene estudiantes del curso** para validar rápidamente este flujo.
+
 ### Checklist de aceptación
 
 - [x] `POST /api/familias/vinculos` valida el formato del código, exige rol familia y crea el vínculo.
