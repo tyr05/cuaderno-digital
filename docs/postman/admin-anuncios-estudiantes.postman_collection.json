@@ -99,6 +99,43 @@
       "response": []
     },
     {
+      "name": "Admin obtiene estudiantes del curso",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estudiantes del curso disponibles', function () { pm.response.to.have.status(200); });",
+              "const data = pm.response.json();",
+              "pm.test('La respuesta es un arreglo', function () { pm.expect(Array.isArray(data)).to.be.true; });",
+              "if (Array.isArray(data) && data.length) {",
+              "  pm.test('Primer estudiante con nombre y código', function () {",
+              "    pm.expect(data[0]).to.have.property('nombre');",
+              "    pm.expect(data[0]).to.have.property('codigo');",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/students?cursoId={{cursoId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "students"],
+          "query": [
+            { "key": "cursoId", "value": "{{cursoId}}" }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "Admin busca estudiantes",
       "event": [
         {

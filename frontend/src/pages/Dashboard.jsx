@@ -15,6 +15,28 @@ import EmptyState from "../components/ui/EmptyState";
 import Input from "../components/ui/Input";
 import Skeleton from "../components/ui/Skeleton";
 
+function buildStudentSubtitle(student) {
+  if (!student) return undefined;
+
+  const parts = [];
+  const cursoValue = String(student.curso ?? "").trim();
+  if (cursoValue) {
+    parts.push(cursoValue.includes("°") ? cursoValue : `${cursoValue}°`);
+  }
+
+  const divisionValue = String(student.division ?? "").trim();
+  if (divisionValue) {
+    parts.push(`Div ${divisionValue}`);
+  }
+
+  const codigoValue = String(student.codigo ?? "").trim();
+  if (codigoValue) {
+    parts.push(`Código ${codigoValue}`);
+  }
+
+  return parts.length ? parts.join(" · ") : undefined;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const toast = useToast();
@@ -27,6 +49,8 @@ export default function Dashboard() {
   const [resumen, setResumen] = useState(null);
   const [loadingResumen, setLoadingResumen] = useState(false);
   const [alumnoSel, setAlumnoSel] = useState("todos");
+  const [alumnosCursoActual, setAlumnosCursoActual] = useState([]);
+  const [loadingAlumnos, setLoadingAlumnos] = useState(false);
 
   // Modal "Nuevo anuncio"
   const [openNew, setOpenNew] = useState(false);
@@ -71,6 +95,48 @@ export default function Dashboard() {
   useEffect(() => {
     setAlumnoSel("todos");
   }, [cursoSel]);
+
+  useEffect(() => {
+    if (!cursoSel) {
+      setAlumnosCursoActual([]);
+      setLoadingAlumnos(false);
+      return;
+    }
+
+    let ignore = false;
+    setLoadingAlumnos(true);
+    setAlumnosCursoActual([]);
+
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        params.set("cursoId", cursoSel);
+        const list = await apiGet(`/api/students?${params.toString()}`);
+        if (!ignore) {
+          setAlumnosCursoActual(Array.isArray(list) ? list : []);
+        }
+      } catch {
+        if (!ignore) {
+          setAlumnosCursoActual([]);
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingAlumnos(false);
+        }
+      }
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [cursoSel]);
+
+  useEffect(() => {
+    if (alumnoSel === "todos") return;
+    if (!alumnosCursoActual.some((a) => a._id === alumnoSel)) {
+      setAlumnoSel("todos");
+    }
+  }, [alumnosCursoActual, alumnoSel]);
 
   // Cargar anuncios del curso
   useEffect(() => {
@@ -151,10 +217,6 @@ export default function Dashboard() {
   }
 
   const cursoActual = cursos.find((c) => c._id === cursoSel);
-  const alumnosCursoActual = useMemo(
-    () => (cursoActual?.alumnos ? cursoActual.alumnos : []),
-    [cursoActual],
-  );
 
   useEffect(() => {
     if (alcance !== "alumno") return;
@@ -195,6 +257,7 @@ export default function Dashboard() {
             alumnoSel={alumnoSel}
             onAlumnoChange={setAlumnoSel}
             alumnos={alumnosCursoActual}
+            alumnosLoading={loadingAlumnos}
             mostrarFiltroAlumnos={esCreador}
           />
 
@@ -243,6 +306,7 @@ export default function Dashboard() {
                   {a.alumno ? (
                     <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-3 py-1 text-xs font-semibold text-brand-700">
                       🎯 Dirigido a {a.alumno.nombre}
+                      {a.alumno.codigo ? ` · Código ${a.alumno.codigo}` : ""}
                     </div>
                   ) : null}
                   <div className="text-xs text-subtext mt-1">
@@ -364,18 +428,22 @@ export default function Dashboard() {
                   options={alumnosCursoActual.map((a) => ({
                     value: a._id,
                     title: a.nombre,
-                    subtitle: a.email || "Sin correo registrado",
+                    subtitle: buildStudentSubtitle(a),
                   }))}
                   placeholder={
-                    alumnosCursoActual.length === 0
-                      ? "Este curso no tiene estudiantes"
-                      : "Elegí un estudiante"
+                    loadingAlumnos
+                      ? "Cargando estudiantes..."
+                      : alumnosCursoActual.length === 0
+                        ? "Este curso no tiene estudiantes"
+                        : "Elegí un estudiante"
                   }
-                  disabled={alumnosCursoActual.length === 0}
+                  disabled={loadingAlumnos || alumnosCursoActual.length === 0}
                   helper={
-                    alumnosCursoActual.length === 0
-                      ? "Agregá estudiantes al curso para enviar anuncios personalizados"
-                      : ""
+                    loadingAlumnos
+                      ? "Estamos trayendo la nómina desde el servidor"
+                      : alumnosCursoActual.length === 0
+                        ? "Agregá estudiantes al curso para enviar anuncios personalizados"
+                        : ""
                   }
                 />
               )}
@@ -406,6 +474,7 @@ function HeroSummary({
   alumnoSel,
   onAlumnoChange,
   alumnos,
+  alumnosLoading = false,
   mostrarFiltroAlumnos = false,
 }) {
   const presentes = resumen?.estados?.presente;
@@ -432,10 +501,28 @@ function HeroSummary({
       alumnos.map((a) => ({
         value: a._id,
         title: a.nombre,
-        subtitle: a.email || "Sin correo registrado",
+        subtitle: buildStudentSubtitle(a) || "Sin datos adicionales",
       })),
     );
   }, [alumnos]);
+
+  const hayAlumnos = Array.isArray(alumnos) && alumnos.length > 0;
+  const alumnoPlaceholder = !cursoSel
+    ? "Seleccioná un curso"
+    : alumnosLoading
+      ? "Cargando estudiantes..."
+      : hayAlumnos
+        ? "Todos los estudiantes"
+        : "Sin estudiantes cargados";
+  const alumnoHelper = !cursoSel
+    ? "Seleccioná un curso para elegir estudiantes"
+    : alumnosLoading
+      ? "Cargando estudiantes del curso..."
+      : !hayAlumnos
+        ? "No se encontraron estudiantes para este curso"
+        : alumnoSel !== "todos"
+          ? "Mostrando anuncios generales y personalizados"
+          : undefined;
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-muted/50 bg-gradient-to-br from-brand-100 via-brand-50 to-white p-6 text-text shadow-soft sm:p-8">
@@ -474,15 +561,9 @@ function HeroSummary({
                   value={cursoSel ? alumnoSel : "todos"}
                   onChange={(next) => onAlumnoChange(next)}
                   options={alumnoOptions}
-                  placeholder="Todos los estudiantes"
-                  disabled={!cursoSel}
-                  helper={
-                    !cursoSel
-                      ? "Seleccioná un curso para elegir estudiantes"
-                      : alumnoSel !== "todos"
-                        ? "Mostrando anuncios generales y personalizados"
-                        : undefined
-                  }
+                  placeholder={alumnoPlaceholder}
+                  disabled={!cursoSel || alumnosLoading}
+                  helper={alumnoHelper}
                 />
               ) : null}
             </div>

@@ -4,6 +4,12 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import Anuncio from "../models/anuncio.js";
 import Curso from "../models/Curso.js";
 import AnuncioRecibo from "../models/AnuncioRecibo.js";
+import Student from "../models/Student.js";
+
+function normalize(value) {
+  if (value === undefined || value === null) return "";
+  return String(value).trim().toLowerCase();
+}
 
 const router = Router();
 
@@ -23,14 +29,26 @@ router.post("/", requireAuth, requireRole("docente", "admin"), async (req, res) 
       return res.status(400).json({ error: "Faltan campos obligatorios" });
     }
 
-    const cursoDoc = await Curso.findById(curso).select("alumnos");
+    const cursoDoc = await Curso.findById(curso).select("anio division nombre");
     if (!cursoDoc) return res.status(404).json({ error: "Curso no encontrado" });
 
     const alumnoId = typeof alumno === "string" ? alumno.trim() : undefined;
     if (alumnoId) {
-      const pertenece = cursoDoc.alumnos.some((id) => id.equals(alumnoId));
-      if (!pertenece) {
-        return res.status(400).json({ error: "El estudiante no pertenece al curso" });
+      const alumnoDoc = await Student.findById(alumnoId).select("curso division nombre");
+      if (!alumnoDoc) {
+        return res.status(404).json({ error: "Estudiante no encontrado" });
+      }
+
+      const cursoValor = normalize(cursoDoc.anio ?? cursoDoc.nombre);
+      const alumnoCursoValor = normalize(alumnoDoc.curso);
+      if (!cursoValor || cursoValor !== alumnoCursoValor) {
+        return res.status(400).json({ error: "El estudiante no pertenece al curso seleccionado" });
+      }
+
+      const divisionCursoValor = normalize(cursoDoc.division);
+      const divisionAlumnoValor = normalize(alumnoDoc.division);
+      if (divisionCursoValor && divisionCursoValor !== divisionAlumnoValor) {
+        return res.status(400).json({ error: "El estudiante no pertenece a la división del curso" });
       }
     }
 
@@ -177,7 +195,7 @@ router.get("/", requireAuth, async (req, res) => {
       .sort({ createdAt: -1 })
       .populate("autor", "nombre rol")
       .populate("curso", "nombre anio division turno")
-      .populate("alumno", "nombre email rol");
+      .populate("alumno", "nombre curso division codigo");
 
     res.json(anuncios);
   } catch (e) {
