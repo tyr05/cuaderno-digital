@@ -17,11 +17,18 @@ export function requireAuth(req, res, next) {
 }
 
 export function requireRole(...rolesPermitidos) {
+  const normalized = rolesPermitidos
+    .map((rol) => (typeof rol === "string" ? rol.toLowerCase() : null))
+    .filter(Boolean);
+
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: "No autenticado" });
-    if (!rolesPermitidos.includes(req.user.rol)) {
+
+    const userRole = String(req.user.rol || req.user.role || "").toLowerCase();
+    if (!normalized.includes(userRole)) {
       return res.status(403).json({ error: "No autorizado" });
     }
+
     next();
   };
 }

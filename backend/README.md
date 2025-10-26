@@ -12,6 +12,19 @@ combinando:
 El proceso es **idempotente** gracias al uso de `Curso.updateOne(..., { upsert: true })`,
 por lo que puede ejecutarse múltiples veces sin crear duplicados.
 
+## Roles y permisos
+
+- **Admin**: puede crear y listar anuncios, acceder al padrón completo de cursos y
+  estudiantes y administrar la asignación de docentes/alumnos.
+- **Docente**: puede crear anuncios para sus cursos, gestionar asistencia y consultar
+  el padrón de estudiantes de la institución.
+- **Familia**: puede ver anuncios dirigidos a familias, vincular y gestionar a sus
+  hijos, pero **no** puede crear anuncios ni acceder al padrón general de estudiantes.
+
+Las rutas protegidas utilizan el middleware `requireRole`, que acepta tanto `rol` como
+`role` en el payload del token JWT y compara de forma case-insensitive para evitar
+errores por capitalización.
+
 ## Vincular por código
 
 ### Variables de entorno requeridas
