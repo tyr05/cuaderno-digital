@@ -8,6 +8,8 @@ import {
   buildCursoFilter,
   buildDivisionComparableFilter,
   buildFieldFilter,
+  normalizeCursoForCompare,
+  normalizeForCompare,
   studentMatchesCurso,
 } from "../utils/studentFilters.js";
 
@@ -134,6 +136,40 @@ router.get("/", requireAuth, requireRole("docente", "admin"), async (req, res) =
           );
           break;
         }
+      }
+    }
+
+    if (students.length === 0 && cursoDoc) {
+      const cursoConIntegrantes = await Curso.findById(cursoDoc._id)
+        .select("anio division nombre alumnos")
+        .populate("alumnos", "nombre email rol")
+        .lean();
+
+      const integrantes = Array.isArray(cursoConIntegrantes?.alumnos)
+        ? cursoConIntegrantes.alumnos.filter(Boolean)
+        : [];
+
+      if (integrantes.length > 0) {
+        console.info(
+          "[students] Fallback usando alumnos vinculados al curso",
+          logContext,
+        );
+
+        const cursoValor =
+          cursoConIntegrantes?.anio ?? cursoConIntegrantes?.nombre ?? "";
+        const divisionValor = cursoConIntegrantes?.division ?? "";
+        const cursoComparableValor = normalizeCursoForCompare(cursoValor);
+        const divisionComparableValor = normalizeForCompare(divisionValor);
+
+        students = integrantes.map((alumno) => ({
+          _id: alumno._id,
+          nombre: alumno.nombre || alumno.email || "",
+          email: alumno.email || "",
+          curso: cursoValor,
+          division: divisionValor,
+          cursoComparable: cursoComparableValor || undefined,
+          divisionComparable: divisionComparableValor || undefined,
+        }));
       }
     }
 
