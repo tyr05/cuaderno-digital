@@ -103,6 +103,8 @@ export default function Dashboard() {
       return;
     }
 
+    const cursoActual = cursos.find((c) => c._id === cursoSel) || null;
+
     let ignore = false;
     setLoadingAlumnos(true);
     setAlumnosCursoActual([]);
@@ -111,11 +113,38 @@ export default function Dashboard() {
       try {
         const params = new URLSearchParams();
         params.set("cursoId", cursoSel);
-        const list = await apiGet(`/api/students?${params.toString()}`);
+        let list = await apiGet(`/api/students?${params.toString()}`);
+
+        if (Array.isArray(list) && list.length === 0 && cursoActual) {
+          const fallbackParams = new URLSearchParams();
+          if (cursoActual.anio !== undefined && cursoActual.anio !== null && `${cursoActual.anio}`.trim()) {
+            fallbackParams.set("curso", cursoActual.anio);
+          }
+          if (cursoActual.division) {
+            fallbackParams.set("division", cursoActual.division);
+          }
+
+          if (fallbackParams.toString()) {
+            console.info(
+              "[Dashboard] Fallback de estudiantes por curso/división",
+              Object.fromEntries(fallbackParams.entries()),
+            );
+            try {
+              const fallbackList = await apiGet(`/api/students?${fallbackParams.toString()}`);
+              if (Array.isArray(fallbackList) && fallbackList.length > 0) {
+                list = fallbackList;
+              }
+            } catch (error) {
+              console.error("Fallback de estudiantes falló", error);
+            }
+          }
+        }
+
         if (!ignore) {
           setAlumnosCursoActual(Array.isArray(list) ? list : []);
         }
-      } catch {
+      } catch (error) {
+        console.error("No se pudieron cargar los estudiantes del curso", error);
         if (!ignore) {
           setAlumnosCursoActual([]);
         }
@@ -129,7 +158,7 @@ export default function Dashboard() {
     return () => {
       ignore = true;
     };
-  }, [cursoSel]);
+  }, [cursoSel, cursos]);
 
   useEffect(() => {
     if (alumnoSel === "todos") return;
