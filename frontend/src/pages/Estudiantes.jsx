@@ -15,12 +15,16 @@ import { useToast } from "../components/ui/Toast";
 const TURNO_TODOS = "todos";
 const DIVISION_TODAS = "todas";
 
+const asStr = (value) => String(value ?? "").trim();
+
 function resolveTurno(curso) {
-  return curso?.turno?.trim() || "Sin turno";
+  const turno = asStr(curso?.turno);
+  return turno || "Sin turno";
 }
 
 function resolveDivision(curso) {
-  return curso?.division?.trim() || "Sin división";
+  const division = asStr(curso?.division);
+  return division || "Sin división";
 }
 
 export default function Estudiantes() {
@@ -48,6 +52,9 @@ export default function Estudiantes() {
     (async () => {
       try {
         const data = await apiGet("/api/cursos");
+        if (Array.isArray(data)) {
+          console.debug("[cursos]", data.length, data.slice(0, 3));
+        }
         setCursos(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("No se pudieron cargar los cursos", error);
@@ -144,9 +151,10 @@ export default function Estudiantes() {
       const turnoCurso = resolveTurno(curso);
       const divisionCurso = resolveDivision(curso);
 
-      const coincideTurno = turno === TURNO_TODOS || turnoCurso === turno;
+      const coincideTurno =
+        turno === TURNO_TODOS || asStr(turnoCurso) === asStr(turno);
       const coincideDivision =
-        division === DIVISION_TODAS || divisionCurso === division;
+        division === DIVISION_TODAS || asStr(divisionCurso) === asStr(division);
 
       return coincideTurno && coincideDivision;
     });

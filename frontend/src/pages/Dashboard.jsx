@@ -80,6 +80,9 @@ export default function Dashboard() {
       try {
         const list = await apiGet("/api/cursos");
         setCursos(Array.isArray(list) ? list : []);
+        if (Array.isArray(list)) {
+          console.debug("[cursos]", list.length, list.slice(0, 3));
+        }
         setCursoSel(list?.[0]?._id || "");
       } catch (error) {
         console.error("No se pudieron cargar los cursos", error);
@@ -111,37 +114,13 @@ export default function Dashboard() {
 
     (async () => {
       try {
-        const params = new URLSearchParams();
-        params.set("cursoId", cursoSel);
-        let list = await apiGet(`/api/students?${params.toString()}`);
-
-        if (Array.isArray(list) && list.length === 0 && cursoActual) {
-          const fallbackParams = new URLSearchParams();
-          if (cursoActual.anio !== undefined && cursoActual.anio !== null && `${cursoActual.anio}`.trim()) {
-            fallbackParams.set("curso", cursoActual.anio);
-          }
-          if (cursoActual.division) {
-            fallbackParams.set("division", cursoActual.division);
-          }
-
-          if (fallbackParams.toString()) {
-            console.info(
-              "[Dashboard] Fallback de estudiantes por curso/división",
-              Object.fromEntries(fallbackParams.entries()),
-            );
-            try {
-              const fallbackList = await apiGet(`/api/students?${fallbackParams.toString()}`);
-              if (Array.isArray(fallbackList) && fallbackList.length > 0) {
-                list = fallbackList;
-              }
-            } catch (error) {
-              console.error("Fallback de estudiantes falló", error);
-            }
-          }
-        }
-
+        const data = await apiGet(`/api/students/by-course/${cursoSel}`);
+        const list = Array.isArray(data?.students) ? data.students : [];
         if (!ignore) {
-          setAlumnosCursoActual(Array.isArray(list) ? list : []);
+          console.debug("[students/by-course]", data?.count ?? list.length, {
+            courseId: cursoSel,
+          });
+          setAlumnosCursoActual(list);
         }
       } catch (error) {
         console.error("No se pudieron cargar los estudiantes del curso", error);
@@ -456,7 +435,7 @@ export default function Dashboard() {
                   onChange={(next) => setAlumnoDestino(next)}
                   options={alumnosCursoActual.map((a) => ({
                     value: a._id,
-                    title: a.nombre,
+                    title: a.codigo ? `${a.nombre} (${a.codigo})` : a.nombre,
                     subtitle: buildStudentSubtitle(a),
                   }))}
                   placeholder={
