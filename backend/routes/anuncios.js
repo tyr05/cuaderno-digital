@@ -5,21 +5,7 @@ import Anuncio from "../models/anuncio.js";
 import Curso from "../models/Curso.js";
 import AnuncioRecibo from "../models/AnuncioRecibo.js";
 import Student from "../models/Student.js";
-
-function normalize(value) {
-  if (value === undefined || value === null) return "";
-  return String(value)
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .trim()
-    .toLowerCase();
-}
-
-function normalizeCurso(value) {
-  const normalized = normalize(value);
-  if (!normalized) return "";
-  return normalized.replace(/[º°]/g, "").replace(/\s+/g, "");
-}
+import { studentMatchesCurso } from "../utils/studentFilters.js";
 
 const router = Router();
 
@@ -39,26 +25,21 @@ router.post("/", requireAuth, requireRole("docente", "admin"), async (req, res) 
       return res.status(400).json({ error: "Faltan campos obligatorios" });
     }
 
-    const cursoDoc = await Curso.findById(curso).select("anio division nombre");
+    const cursoDoc = await Curso.findById(curso).select("anio division nombre").lean();
     if (!cursoDoc) return res.status(404).json({ error: "Curso no encontrado" });
 
     const alumnoId = typeof alumno === "string" ? alumno.trim() : undefined;
     if (alumnoId) {
-      const alumnoDoc = await Student.findById(alumnoId).select("curso division nombre");
+      const alumnoDoc = await Student.findById(alumnoId)
+        .select("curso division nombre cursoComparable divisionComparable")
+        .lean();
       if (!alumnoDoc) {
         return res.status(404).json({ error: "Estudiante no encontrado" });
       }
 
-      const cursoValores = [normalizeCurso(cursoDoc.anio), normalizeCurso(cursoDoc.nombre)].filter(Boolean);
-      const alumnoCursoValor = normalizeCurso(alumnoDoc.curso);
-      if (cursoValores.length && (!alumnoCursoValor || !cursoValores.includes(alumnoCursoValor))) {
+      // Se reutiliza la misma lógica de normalización que usa /api/students.
+      if (!studentMatchesCurso(alumnoDoc, cursoDoc)) {
         return res.status(400).json({ error: "El estudiante no pertenece al curso seleccionado" });
-      }
-
-      const divisionCursoValor = normalize(cursoDoc.division);
-      const divisionAlumnoValor = normalize(alumnoDoc.division);
-      if (divisionCursoValor && divisionCursoValor !== divisionAlumnoValor) {
-        return res.status(400).json({ error: "El estudiante no pertenece a la división del curso" });
       }
     }
 

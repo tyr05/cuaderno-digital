@@ -3,115 +3,45 @@ import express from "express";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import Student from "../models/Student.js";
 import Curso from "../models/Curso.js";
-
-function buildComparableValues(raw) {
-  if (raw === undefined || raw === null) return [];
-
-  const values = new Set();
-  const asString = String(raw).trim();
-  if (asString) {
-    values.add(asString);
-    const asNumber = Number(asString);
-    if (!Number.isNaN(asNumber)) {
-      values.add(asNumber);
-    }
-  }
-
-  if (typeof raw === "number" && !Number.isNaN(raw)) {
-    values.add(raw);
-    values.add(String(raw));
-  }
-
-  return Array.from(values);
-}
-
-function buildFieldFilter(raw) {
-  const values = buildComparableValues(raw);
-  if (values.length === 0) return undefined;
-  if (values.length === 1) return values[0];
-  return { $in: values };
-}
-
-function normalizeForCompare(value) {
-  if (value === undefined || value === null) return "";
-  return String(value)
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .trim()
-    .toLowerCase();
-}
-
-function normalizeCursoForCompare(value) {
-  const normalized = normalizeForCompare(value);
-  if (!normalized) return "";
-  return normalized.replace(/[º°]/g, "").replace(/\s+/g, "");
-}
-
-function buildCursoFilter(...rawValues) {
-  const values = new Set();
-
-  rawValues.forEach((raw) => {
-    buildComparableValues(raw).forEach((val) => {
-      if (val !== "" && val !== undefined && val !== null) {
-        values.add(val);
-      }
-    });
-
-    const asString = String(raw ?? "").trim();
-    if (asString) {
-      values.add(asString);
-      const withoutOrdinal = asString.replace(/[º°]/g, "").trim();
-      if (withoutOrdinal) {
-        values.add(withoutOrdinal);
-        const numeric = Number(withoutOrdinal);
-        if (!Number.isNaN(numeric)) {
-          values.add(numeric);
-        }
-      }
-
-      const digitsOnly = asString.replace(/[^0-9]/g, "");
-      if (digitsOnly) {
-        values.add(digitsOnly);
-        values.add(`${digitsOnly}°`);
-        values.add(`${digitsOnly}º`);
-        const asNumber = Number(digitsOnly);
-        if (!Number.isNaN(asNumber)) {
-          values.add(asNumber);
-        }
-      }
-    }
-
-    const normalizedCurso = normalizeCursoForCompare(raw);
-    if (normalizedCurso) {
-      values.add(normalizedCurso);
-    }
-  });
-
-  const result = Array.from(values).filter((val) => val !== "");
-  if (result.length === 0) return undefined;
-  if (result.length === 1) return result[0];
-  return { $in: result };
-}
-
-function studentMatchesCurso(student, cursoDoc) {
-  if (!student || !cursoDoc) return false;
-
-  const studentCurso = normalizeCursoForCompare(student.curso);
-  const cursoTargets = [cursoDoc.anio, cursoDoc.nombre]
-    .map((value) => normalizeCursoForCompare(value))
-    .filter(Boolean);
-
-  if (cursoTargets.length && (!studentCurso || !cursoTargets.includes(studentCurso))) {
-    return false;
-  }
-
-  const cursoDivision = normalizeForCompare(cursoDoc.division);
-  if (!cursoDivision) return true;
-
-  return normalizeForCompare(student.division) === cursoDivision;
-}
+import {
+  buildCursoComparableFilter,
+  buildCursoFilter,
+  buildDivisionComparableFilter,
+  buildFieldFilter,
+  studentMatchesCurso,
+} from "../utils/studentFilters.js";
 
 const router = express.Router();
+
+// Normaliza y aplica filtros de curso admitiendo combinaciones de números y textos.
+function applyCursoFilters(target, ...values) {
+  const cursoFilter = buildCursoFilter(...values);
+  const cursoComparableFilter = buildCursoComparableFilter(...values);
+
+  if (cursoFilter && cursoComparableFilter) {
+    target.$and = target.$and || [];
+    target.$and.push({ $or: [{ curso: cursoFilter }, { cursoComparable: cursoComparableFilter }] });
+  } else if (cursoComparableFilter) {
+    target.cursoComparable = cursoComparableFilter;
+  } else if (cursoFilter) {
+    target.curso = cursoFilter;
+  }
+}
+
+// Igual que el curso, la división se normaliza para aceptar letras o números.
+function applyDivisionFilters(target, value) {
+  const divisionFilter = buildFieldFilter(value);
+  const divisionComparableFilter = buildDivisionComparableFilter(value);
+
+  if (divisionFilter && divisionComparableFilter) {
+    target.$and = target.$and || [];
+    target.$and.push({ $or: [{ division: divisionFilter }, { divisionComparable: divisionComparableFilter }] });
+  } else if (divisionComparableFilter) {
+    target.divisionComparable = divisionComparableFilter;
+  } else if (divisionFilter) {
+    target.division = divisionFilter;
+  }
+}
 
 router.get("/", requireAuth, requireRole("docente", "admin"), async (req, res) => {
   try {
@@ -126,20 +56,25 @@ router.get("/", requireAuth, requireRole("docente", "admin"), async (req, res) =
         return res.status(404).json({ error: "Curso no encontrado" });
       }
 
-      const cursoFilter = buildCursoFilter(cursoDoc.anio, cursoDoc.nombre);
-      if (cursoFilter) filter.curso = cursoFilter;
-
-      const divisionFilter = buildFieldFilter(cursoDoc.division);
-      if (divisionFilter) filter.division = divisionFilter;
+      applyCursoFilters(filter, cursoDoc.anio, cursoDoc.nombre);
+      applyDivisionFilters(filter, cursoDoc.division);
     } else {
-      const cursoFilter = buildCursoFilter(curso);
-      if (cursoFilter) filter.curso = cursoFilter;
-
-      const divisionFilter = buildFieldFilter(division);
-      if (divisionFilter) filter.division = divisionFilter;
+      applyCursoFilters(filter, curso);
+      applyDivisionFilters(filter, division);
     }
 
-    if (!filter.curso && !filter.division) {
+    const hasCursoFilter = Boolean(
+      filter.curso ||
+        filter.cursoComparable ||
+        filter.$and?.some((clause) => clause.$or?.some((cond) => "curso" in cond || "cursoComparable" in cond)),
+    );
+    const hasDivisionFilter = Boolean(
+      filter.division ||
+        filter.divisionComparable ||
+        filter.$and?.some((clause) => clause.$or?.some((cond) => "division" in cond || "divisionComparable" in cond)),
+    );
+
+    if (!hasCursoFilter && !hasDivisionFilter) {
       return res.status(400).json({ error: "Debés indicar cursoId o curso/división" });
     }
 
@@ -148,9 +83,9 @@ router.get("/", requireAuth, requireRole("docente", "admin"), async (req, res) =
       .sort({ nombre: 1 })
       .lean();
 
-    if (cursoDoc && filter.curso && docs.length === 0) {
+    if (cursoDoc && hasCursoFilter && docs.length === 0) {
       const fallbackFilter = {};
-      if (filter.division) fallbackFilter.division = filter.division;
+      applyDivisionFilters(fallbackFilter, cursoDoc.division);
 
       docs = await Student.find(fallbackFilter)
         .select("nombre curso division codigo")
@@ -182,12 +117,10 @@ router.get("/search", requireAuth, requireRole("docente", "admin"), async (req, 
       filter.nombre = { $regex: escaped, $options: "i" };
     }
     if (curso !== undefined) {
-      const cursoFilter = buildCursoFilter(curso);
-      if (cursoFilter) filter.curso = cursoFilter;
+      applyCursoFilters(filter, curso);
     }
     if (division !== undefined) {
-      const divisionFilter = buildFieldFilter(division);
-      if (divisionFilter) filter.division = divisionFilter;
+      applyDivisionFilters(filter, division);
     }
 
     const docs = await Student.find(filter)
