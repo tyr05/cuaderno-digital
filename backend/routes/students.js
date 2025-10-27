@@ -1,172 +1,147 @@
 // routes/students.js
 import express from "express";
-import mongoose from "mongoose";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import Student from "../models/Student.js";
 import Curso from "../models/Curso.js";
-
-function buildComparableValues(raw) {
-  if (raw === undefined || raw === null) return [];
-
-  const values = new Set();
-  const asString = String(raw).trim();
-  if (asString) {
-    values.add(asString);
-    const asNumber = Number(asString);
-    if (!Number.isNaN(asNumber)) {
-      values.add(asNumber);
-    }
-  }
-
-  if (typeof raw === "number" && !Number.isNaN(raw)) {
-    values.add(raw);
-    values.add(String(raw));
-  }
-
-  return Array.from(values);
-}
-
-function buildFieldFilter(raw) {
-  const values = buildComparableValues(raw);
-  if (values.length === 0) return undefined;
-  if (values.length === 1) return values[0];
-  return { $in: values };
-}
-
-function normalizeForCompare(value) {
-  if (value === undefined || value === null) return "";
-  return String(value)
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .trim()
-    .toLowerCase();
-}
-
-function normalizeCursoForCompare(value) {
-  const normalized = normalizeForCompare(value);
-  if (!normalized) return "";
-  return normalized.replace(/[º°]/g, "").replace(/\s+/g, "");
-}
-
-function buildCursoFilter(...rawValues) {
-  const values = new Set();
-
-  rawValues.forEach((raw) => {
-    buildComparableValues(raw).forEach((val) => {
-      if (val !== "" && val !== undefined && val !== null) {
-        values.add(val);
-      }
-    });
-
-    const asString = String(raw ?? "").trim();
-    if (asString) {
-      values.add(asString);
-      const withoutOrdinal = asString.replace(/[º°]/g, "").trim();
-      if (withoutOrdinal) {
-        values.add(withoutOrdinal);
-        const numeric = Number(withoutOrdinal);
-        if (!Number.isNaN(numeric)) {
-          values.add(numeric);
-        }
-      }
-
-      const digitsOnly = asString.replace(/[^0-9]/g, "");
-      if (digitsOnly) {
-        values.add(digitsOnly);
-        values.add(`${digitsOnly}°`);
-        values.add(`${digitsOnly}º`);
-        const asNumber = Number(digitsOnly);
-        if (!Number.isNaN(asNumber)) {
-          values.add(asNumber);
-        }
-      }
-    }
-
-    const normalizedCurso = normalizeCursoForCompare(raw);
-    if (normalizedCurso) {
-      values.add(normalizedCurso);
-    }
-  });
-
-  const result = Array.from(values).filter((val) => val !== "");
-  if (result.length === 0) return undefined;
-  if (result.length === 1) return result[0];
-  return { $in: result };
-}
-
-function studentMatchesCurso(student, cursoDoc) {
-  if (!student || !cursoDoc) return false;
-
-  const studentCurso = normalizeCursoForCompare(student.curso);
-  const cursoTargets = [cursoDoc.anio, cursoDoc.nombre]
-    .map((value) => normalizeCursoForCompare(value))
-    .filter(Boolean);
-
-  if (cursoTargets.length && (!studentCurso || !cursoTargets.includes(studentCurso))) {
-    return false;
-  }
-
-  const cursoDivision = normalizeForCompare(cursoDoc.division);
-  if (!cursoDivision) return true;
-
-  return normalizeForCompare(student.division) === cursoDivision;
-}
+import {
+  buildCursoComparableFilter,
+  buildCursoFilter,
+  buildDivisionComparableFilter,
+  buildFieldFilter,
+  studentMatchesCurso,
+} from "../utils/studentFilters.js";
 
 const router = express.Router();
+
+function combineStudentFilters({
+  cursoFilter,
+  cursoComparableFilter,
+  divisionFilter,
+  divisionComparableFilter,
+}) {
+  const clauses = [];
+
+  if (cursoFilter || cursoComparableFilter) {
+    const or = [];
+    if (cursoFilter) or.push({ curso: cursoFilter });
+    if (cursoComparableFilter) or.push({ cursoComparable: cursoComparableFilter });
+    if (or.length === 1) clauses.push(or[0]);
+    else if (or.length > 1) clauses.push({ $or: or });
+  }
+
+  if (divisionFilter || divisionComparableFilter) {
+    const or = [];
+    if (divisionFilter) or.push({ division: divisionFilter });
+    if (divisionComparableFilter) or.push({ divisionComparable: divisionComparableFilter });
+    if (or.length === 1) clauses.push(or[0]);
+    else if (or.length > 1) clauses.push({ $or: or });
+  }
+
+  if (clauses.length === 0) return {};
+  if (clauses.length === 1) return clauses[0];
+  return { $and: clauses };
+}
+
+async function findAndMatchStudents(filter, cursoDoc) {
+  const query = Object.keys(filter || {}).length ? filter : {};
+
+  const students = await Student.find(query)
+    .select("nombre curso division codigo cursoComparable divisionComparable")
+    .sort({ nombre: 1 })
+    .lean();
+
+  if (!cursoDoc) return students;
+
+  return students.filter((student) => studentMatchesCurso(student, cursoDoc));
+}
 
 router.get("/", requireAuth, requireRole("docente", "admin"), async (req, res) => {
   try {
     const { cursoId, curso, division } = req.query;
 
-    const filter = {};
-    let usedCursoId = false;
+    let cursoDoc = null;
+    let cursoFilter;
+    let divisionFilter;
+    let cursoComparableFilter;
+    let divisionComparableFilter;
 
     if (cursoId) {
-      const cursoDoc = await Curso.findById(cursoId)
-        .select("anio division")
+      cursoDoc = await Curso.findById(cursoId)
+        .select("anio division nombre")
         .lean();
       if (!cursoDoc) {
         return res.status(404).json({ error: "Curso no encontrado" });
       }
 
-      const cursoFilter = buildCursoFilter(cursoDoc.anio, cursoDoc.nombre);
-      if (cursoFilter) filter.curso = cursoFilter;
-
-      const divisionFilter = buildFieldFilter(cursoDoc.division);
-      if (divisionFilter) filter.division = divisionFilter;
+      cursoFilter = buildCursoFilter(cursoDoc.anio, cursoDoc.nombre);
+      divisionFilter = buildFieldFilter(cursoDoc.division);
+      cursoComparableFilter = buildCursoComparableFilter(cursoDoc.anio, cursoDoc.nombre);
+      divisionComparableFilter = buildDivisionComparableFilter(cursoDoc.division);
     } else {
-      const cursoFilter = buildCursoFilter(curso);
-      if (cursoFilter) filter.curso = cursoFilter;
-
-      const divisionFilter = buildFieldFilter(division);
-      if (divisionFilter) filter.division = divisionFilter;
+      cursoFilter = buildCursoFilter(curso);
+      divisionFilter = buildFieldFilter(division);
+      cursoComparableFilter = buildCursoComparableFilter(curso);
+      divisionComparableFilter = buildDivisionComparableFilter(division);
     }
 
-    if (!filter.curso && !filter.division) {
+    if (!cursoFilter && !cursoComparableFilter && !divisionFilter && !divisionComparableFilter) {
       return res.status(400).json({ error: "Debés indicar cursoId o curso/división" });
     }
 
-    const docs = await Student.find(filter)
-      .select("nombre curso division codigo")
-      .sort({ nombre: 1 })
-      .lean();
+    const primaryFilter = combineStudentFilters({
+      cursoFilter,
+      cursoComparableFilter,
+      divisionFilter,
+      divisionComparableFilter,
+    });
 
-    if (cursoDoc && filter.curso && docs.length === 0) {
-      const fallbackFilter = {};
-      if (filter.division) fallbackFilter.division = filter.division;
+    const logContext = {
+      cursoId: cursoId || null,
+      curso: curso ?? null,
+      division: division ?? null,
+    };
 
-      docs = await Student.find(fallbackFilter)
-        .select("nombre curso division codigo")
-        .sort({ nombre: 1 })
-        .lean();
+    let students = await findAndMatchStudents(primaryFilter, cursoDoc);
+
+    if (cursoDoc && students.length === 0) {
+      console.info(
+        "[students] Sin alumnos con filtro principal, iniciando fallback",
+        logContext,
+      );
+
+      const fallbacks = [
+        {
+          label: "curso",
+          filter: combineStudentFilters({ cursoFilter, cursoComparableFilter }),
+        },
+        {
+          label: "division",
+          filter: combineStudentFilters({ divisionFilter, divisionComparableFilter }),
+        },
+        {
+          label: "sin filtros",
+          filter: {},
+        },
+      ];
+
+      for (const fallback of fallbacks) {
+        if (students.length > 0) break;
+        students = await findAndMatchStudents(fallback.filter, cursoDoc);
+        if (students.length > 0) {
+          console.info(
+            `[students] Fallback "${fallback.label}" recuperó ${students.length} alumno(s)`,
+            logContext,
+          );
+          break;
+        }
+      }
     }
 
-    if (cursoDoc) {
-      const filtered = docs.filter((student) => studentMatchesCurso(student, cursoDoc));
-      return res.json(filtered);
+    if (students.length === 0) {
+      console.warn("[students] No se encontraron alumnos con los criterios proporcionados", logContext);
     }
 
-    res.json(docs);
+    res.json(students);
   } catch (error) {
     console.error("Error listando estudiantes por curso:", error);
     res.status(500).json({ error: "Error buscando estudiantes" });
@@ -184,21 +159,21 @@ router.get(
   async (req, res) => {
     const { q = "", curso, division, limit = 20 } = req.query;
 
-  try {
-    // Construir filtro
-    const filter = {};
-    if (q) {
-      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      filter.nombre = { $regex: escaped, $options: "i" };
-    }
-    if (curso !== undefined) {
-      const cursoFilter = buildCursoFilter(curso);
-      if (cursoFilter) filter.curso = cursoFilter;
-    }
-    if (division !== undefined) {
-      const divisionFilter = buildFieldFilter(division);
-      if (divisionFilter) filter.division = divisionFilter;
-    }
+    try {
+      // Construir filtro
+      const filter = {};
+      if (q) {
+        const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        filter.nombre = { $regex: escaped, $options: "i" };
+      }
+      if (curso !== undefined) {
+        const cursoFilter = buildCursoFilter(curso);
+        if (cursoFilter) filter.curso = cursoFilter;
+      }
+      if (division !== undefined) {
+        const divisionFilter = buildFieldFilter(division);
+        if (divisionFilter) filter.division = divisionFilter;
+      }
 
       const docs = await Student.find(filter)
         .select("nombre curso division codigo")
