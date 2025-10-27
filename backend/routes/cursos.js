@@ -51,10 +51,25 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
   }
 });
 
-// Listar cursos (todos los roles)
-router.get("/", requireAuth, async (req, res) => {
-  const cursos = await Curso.find().populate("docentes alumnos", "nombre email rol");
-  res.json(cursos);
+// Listar cursos (docentes y admin)
+router.get("/", requireAuth, requireRole("docente", "admin"), async (req, res) => {
+  try {
+    const { q } = req.query;
+    const filter = {};
+    if (q) {
+      filter.nombre = { $regex: String(q).trim(), $options: "i" };
+    }
+
+    const cursos = await Curso.find(filter)
+      .select("anio division turno nombre")
+      .sort({ anio: 1, division: 1, turno: 1 })
+      .lean();
+
+    res.json(cursos);
+  } catch (error) {
+    console.error("[cursos] Error listando cursos", error);
+    res.status(500).json({ error: "No se pudieron obtener los cursos" });
+  }
 });
 
 function pickValue(row, keys) {

@@ -40,7 +40,7 @@ PORT=5000 # opcional
 En el frontend añadir un `.env` con:
 
 ```bash
-VITE_API_URL=http://localhost:5000
+VITE_API_BASE_URL=http://localhost:5000
 ```
 
 ### Puesta en marcha local
@@ -58,6 +58,22 @@ VITE_API_URL=http://localhost:5000
    npm run dev -- --host
    ```
 3. La aplicación quedará disponible en `http://localhost:5173` consumiendo el backend en `http://localhost:5000`.
+
+### Pruebas manuales rápidas
+
+Con el backend levantado, estos comandos de PowerShell permiten validar el flujo de autenticación,
+listado de cursos y estudiantes:
+
+```powershell
+$base = $env:VITE_API_BASE_URL
+$login = Invoke-RestMethod -Uri "$base/api/auth/login" -Method Post -Headers @{ "Content-Type"="application/json" } -Body '{"email":"admin@cuaderno.com","password":"admin123"}'
+$TOKEN = $login.token
+
+Invoke-RestMethod -Uri "$base/api/cursos?ts=$(Get-Random)" -Headers @{ Authorization = "Bearer $TOKEN" } -Method Get
+
+$CID = "<_id de cursos>"
+Invoke-RestMethod -Uri "$base/api/students/by-course/$CID?ts=$(Get-Random)" -Headers @{ Authorization = "Bearer $TOKEN" } -Method Get
+```
 
 ### Flujo de prueba manual
 

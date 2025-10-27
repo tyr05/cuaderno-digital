@@ -9,7 +9,8 @@ function isLoopback(hostname = "") {
 }
 
 function resolveBaseUrl() {
-  const envUrl = import.meta.env.VITE_API_URL?.trim();
+  const envUrl =
+    import.meta.env.VITE_API_BASE_URL?.trim() || import.meta.env.VITE_API_URL?.trim();
   if (envUrl) {
     try {
       const parsed = new URL(envUrl);
@@ -115,9 +116,12 @@ async function handle(res) {
 }
 
 export async function apiGet(path) {
-  const res = await fetch(buildUrl(path), {
+  const url = new URL(buildUrl(path));
+  url.searchParams.set("ts", Date.now().toString());
+  const res = await fetch(url.toString(), {
     method: "GET",
     headers: authHeaders({ "Content-Type": "application/json" }),
+    cache: "no-store",
   });
   return handle(res);
 }
