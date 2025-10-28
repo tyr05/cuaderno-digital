@@ -7,6 +7,7 @@
     "dev": "nodemon index.js",
     "start": "node index.js",
     "seed:cursos": "node ./scripts/seedCursos.js",
+    "sync:indexes": "node ./scripts/sync-indexes.js",
     "test": "NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand"
   },
   "dependencies": {
