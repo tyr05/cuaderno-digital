@@ -1,25 +1,28 @@
-// index.js
-import dotenv from "dotenv";
-import mongoose from "mongoose";
-import app from "./app.js";
+// backend/app.js
+import express from "express";
+import cors from "cors";
 
-dotenv.config();
+// Rutas
+import authRouter from "./routes/auth.js";
+import cursosRouter from "./routes/cursos.js";
+import studentsRouter from "./routes/students.js";
+import anunciosRouter from "./routes/anuncios.js";
+import usersRouter from "./routes/users.js";
 
-const { MONGO_URI, JWT_SECRET, PORT } = process.env;
+const app = express();
 
-if (!MONGO_URI || !JWT_SECRET) {
-  console.error("❌ Faltan MONGO_URI o JWT_SECRET");
-  process.exit(1);
-}
+// Middlewares base
+app.use(cors());
+app.use(express.json());
 
-mongoose
-  .connect(MONGO_URI)
-  .then(() => console.log("✅ Conectado a MongoDB"))
-  .catch((err) => {
-    console.error("❌ Error MongoDB:", err.message);
-    process.exit(1);
-  });
+// Healthcheck
+app.get("/health", (_req, res) => res.json({ ok: true }));
 
-app.listen(PORT || 5000, () => {
-  console.log(`✅ Servidor en http://localhost:${PORT || 5000}`);
-});
+// Montaje de rutas (IMPORTANTE)
+app.use("/api/auth", authRouter);         // registro/login (emite JWT con rol)
+app.use("/api/cursos", cursosRouter);     // lista cursos
+app.use("/api/students", studentsRouter); // estudiantes por curso (_id → anio/division)
+app.use("/api/anuncios", anunciosRouter); // anuncios (curso/alumno)
+app.use("/api/users", usersRouter);       // gestión de familia/hijos
+
+export default app;
