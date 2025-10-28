@@ -1,28 +1,50 @@
-// backend/app.js
-import express from "express";
-import cors from "cors";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+import app from "./app.js";
 
-// Rutas
-import authRouter from "./routes/auth.js";
-import cursosRouter from "./routes/cursos.js";
-import studentsRouter from "./routes/students.js";
-import anunciosRouter from "./routes/anuncios.js";
-import usersRouter from "./routes/users.js";
+dotenv.config();
 
-const app = express();
+const missingEnv = ["MONGO_URI", "JWT_SECRET"].filter((key) => {
+  const value = process.env[key];
+  return typeof value !== "string" || value.trim() === "";
+});
 
-// Middlewares base
-app.use(cors());
-app.use(express.json());
+if (missingEnv.length) {
+  console.error(`❌ Faltan variables de entorno obligatorias: ${missingEnv.join(", ")}`);
+  process.exit(1);
+}
 
-// Healthcheck
-app.get("/health", (_req, res) => res.json({ ok: true }));
+const { MONGO_URI } = process.env;
+const PORT = Number.parseInt(process.env.PORT, 10) || 5000;
 
-// Montaje de rutas (IMPORTANTE)
-app.use("/api/auth", authRouter);         // registro/login (emite JWT con rol)
-app.use("/api/cursos", cursosRouter);     // lista cursos
-app.use("/api/students", studentsRouter); // estudiantes por curso (_id → anio/division)
-app.use("/api/anuncios", anunciosRouter); // anuncios (curso/alumno)
-app.use("/api/users", usersRouter);       // gestión de familia/hijos
+mongoose.connection.on("connected", () => {
+  const { name, host } = mongoose.connection;
+  console.log(`✅ Conectado a MongoDB (${name} @ ${host})`);
+});
 
-export default app;
+mongoose.connection.on("error", (error) => {
+  console.error("❌ Error de conexión a MongoDB:", error);
+});
+
+async function start() {
+  try {
+    await mongoose.connect(MONGO_URI);
+    app.listen(PORT, () => {
+      console.log(`🚀 Backend listo en http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("❌ No se pudo iniciar el servidor:", error);
+    process.exit(1);
+  }
+}
+
+start();
+
+process.on("unhandledRejection", (reason) => {
+  console.error("⚠️ Promesa rechazada sin manejar:", reason);
+});
+
+process.on("SIGINT", async () => {
+  await mongoose.disconnect().catch(() => {});
+  process.exit(0);
+});

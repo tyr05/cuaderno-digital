@@ -40,7 +40,7 @@ StudentSchema.path("codigo").validate((value) => {
 
 // Búsqueda rápida por nombre (case-insensitive)
 StudentSchema.index({ nombre: "text" });
-StudentSchema.index({ codigo: 1 }, { unique: true });
+StudentSchema.index({ codigo: 1 }, { unique: true, name: "uniq_codigo" });
 
 function assignComparableFields(doc) {
   if (doc.isModified("curso") || doc.isNew) {
