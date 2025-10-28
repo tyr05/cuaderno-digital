@@ -1,6 +1,6 @@
 // routes/anuncios.js
 import { Router } from "express";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/requireAuth.js";
 import Anuncio from "../models/anuncio.js";
 import Curso from "../models/Curso.js";
 import AnuncioRecibo from "../models/AnuncioRecibo.js";

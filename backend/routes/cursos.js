@@ -1,6 +1,6 @@
 // backend/routes/cursos.js
 import { Router } from "express";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/requireAuth.js";
 import Curso from "../models/Curso.js";
 
 const router = Router();

@@ -3,7 +3,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 import AlumnoPadron from "../models/AlumnoPadron.js";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/requireAuth.js";
 
 const router = Router();
 const { ObjectId } = mongoose.Types;
