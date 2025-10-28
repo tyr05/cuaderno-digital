@@ -2,7 +2,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import Asistencia from "../models/Asistencia.js";
 import FamilyStudent from "../models/FamilyStudent.js";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/requireAuth.js";
 import { upload } from "../middleware/upload.js";
 
 const router = Router();

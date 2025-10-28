@@ -5,7 +5,8 @@ import mongoose from "mongoose";
 import StudentLinkToken from "../models/StudentLinkToken.js";
 import User from "../models/User.js";
 import Curso from "../models/Curso.js";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/requireAuth.js";
+
 
 const router = express.Router();
 const { ObjectId } = mongoose.Types;

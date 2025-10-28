@@ -2,7 +2,8 @@ import express from "express";
 import mongoose from "mongoose";
 import Student from "../models/Student.js";
 import FamilyStudent from "../models/FamilyStudent.js";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/requireAuth.js";
+
 
 const router = express.Router();
 const CODE_REGEX = /^[A-Z]{3}-\d{2}-\d{3}$/;

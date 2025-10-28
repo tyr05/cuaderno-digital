@@ -1,6 +1,6 @@
 import express from "express";
-import { requireAuth } from "../middleware/requireAuth.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { requireAuth, requireRole } from "../middleware/requireAuth.js";
+
 import Student from "../models/Student.js";
 import Curso from "../models/Curso.js";
 
